@@ -1,0 +1,172 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens per ui-design-spec.md §4. Light mode only for the MVP
+ * (dark mode is explicitly deferred — see spec §3.1 / §4.45) — CSS variables
+ * are still used throughout so a future `.dark` block can override cleanly.
+ */
+:root {
+  --background: hsl(220 20% 97%);
+  --foreground: hsl(222 47% 11%);
+
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 47% 11%);
+
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 47% 11%);
+
+  --primary: hsl(238 70% 56%);
+  --primary-foreground: hsl(0 0% 100%);
+  --primary-hover: hsl(238 70% 50%);
+  --primary-subtle: hsl(238 70% 96%);
+  --primary-muted: hsl(238 45% 91%);
+
+  --secondary: hsl(220 14% 94%);
+  --secondary-foreground: hsl(222 47% 18%);
+
+  --muted: hsl(220 14% 94%);
+  --muted-foreground: hsl(220 9% 46%);
+
+  --accent: hsl(220 14% 94%);
+  --accent-foreground: hsl(222 47% 18%);
+
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 100%);
+
+  --border: hsl(220 13% 88%);
+  --input: hsl(220 13% 84%);
+  --ring: hsl(238 70% 56%);
+
+  --success: hsl(158 64% 40%);
+  --success-foreground: hsl(0 0% 100%);
+  --success-subtle: hsl(158 64% 95%);
+  --success-border: hsl(158 45% 82%);
+
+  --warning: hsl(38 92% 50%);
+  --warning-foreground: hsl(24 80% 12%);
+  --warning-subtle: hsl(38 92% 95%);
+  --warning-border: hsl(38 70% 80%);
+
+  --info: hsl(211 86% 48%);
+  --info-foreground: hsl(0 0% 100%);
+  --info-subtle: hsl(211 86% 96%);
+  --info-border: hsl(211 60% 84%);
+
+  --error-subtle: hsl(0 72% 96%);
+  --error-border: hsl(0 55% 84%);
+
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-muted: var(--primary-muted);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-border: var(--success-border);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-border: var(--warning-border);
+
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
+  --color-info-border: var(--info-border);
+
+  --color-error-subtle: var(--error-subtle);
+  --color-error-border: var(--error-border);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Type scale — ui-design-spec.md §4.23 / §5.2 */
+@theme {
+  --text-display: 36px;
+  --text-display--line-height: 44px;
+
+  --text-page-title: 28px;
+  --text-page-title--line-height: 36px;
+
+  --text-section-title: 20px;
+  --text-section-title--line-height: 28px;
+
+  --text-subsection: 16px;
+  --text-subsection--line-height: 24px;
+
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 26px;
+
+  --text-body: 14px;
+  --text-body--line-height: 22px;
+
+  --text-body-medium: 14px;
+  --text-body-medium--line-height: 22px;
+
+  --text-small: 13px;
+  --text-small--line-height: 20px;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 18px;
+
+  --text-overline: 11px;
+  --text-overline--line-height: 16px;
+
+  --shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+
+/* ui-design-spec.md §4.32 — comfortable long-form reading width */
+@utility max-w-article {
+  max-width: 720px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
