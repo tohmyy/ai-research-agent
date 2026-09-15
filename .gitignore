@@ -1,0 +1,15 @@
+# Python (api/)
+api/.venv/
+api/venv/
+api/__pycache__/
+api/**/__pycache__/
+*.pyc
+
+# env files (never commit real secrets)
+.env
+.env.local
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
