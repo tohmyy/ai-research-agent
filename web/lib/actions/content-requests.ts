@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq, ne } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -164,17 +164,41 @@ export async function selectArticle(
 ): Promise<void> {
   await requireUserId();
 
+  // Reject only the *other* options' current (highest-version) draft —
+  // never a superseded pre-revision version, including the chosen option's
+  // own history, which should stay whatever it was, not "rejected."
+  const allDrafts = await db
+    .select({
+      id: articleDrafts.id,
+      variantLabel: articleDrafts.variantLabel,
+      version: articleDrafts.version,
+    })
+    .from(articleDrafts)
+    .where(eq(articleDrafts.requestId, requestId));
+
+  const currentByVariant = new Map<string, { id: string; version: number }>();
+  for (const draft of allDrafts) {
+    const key = draft.variantLabel ?? draft.id;
+    const current = currentByVariant.get(key);
+    if (!current || draft.version > current.version) {
+      currentByVariant.set(key, { id: draft.id, version: draft.version });
+    }
+  }
+  const otherCurrentIds = [...currentByVariant.values()]
+    .map((v) => v.id)
+    .filter((id) => id !== draftId);
+
   await db
     .update(articleDrafts)
     .set({ status: "selected", updatedAt: new Date() })
     .where(eq(articleDrafts.id, draftId));
 
-  await db
-    .update(articleDrafts)
-    .set({ status: "rejected", updatedAt: new Date() })
-    .where(
-      and(eq(articleDrafts.requestId, requestId), ne(articleDrafts.id, draftId)),
-    );
+  if (otherCurrentIds.length > 0) {
+    await db
+      .update(articleDrafts)
+      .set({ status: "rejected", updatedAt: new Date() })
+      .where(inArray(articleDrafts.id, otherCurrentIds));
+  }
 
   await db
     .update(contentRequests)

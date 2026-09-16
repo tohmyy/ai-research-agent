@@ -7,6 +7,7 @@ import {
   contentPlans,
   contentRequests,
   draftSources,
+  evaluations,
   researchJobs,
   sources,
 } from "@/lib/db/schema";
@@ -17,7 +18,12 @@ import { SourceExplorer } from "@/components/research/source-explorer";
 import { ResearchFailure } from "@/components/research/research-failure";
 import { LiveRefresh } from "@/components/research/live-refresh";
 import { ArticleOptions } from "@/components/content-requests/article-options";
-import type { ArticleOption } from "@/components/content-requests/types";
+import type {
+  ArticleOption,
+  DraftVersion,
+  Evaluation,
+  EvaluationCriterionScore,
+} from "@/components/content-requests/types";
 
 const IN_PROGRESS_STATUSES = new Set([
   "submitted",
@@ -25,6 +31,7 @@ const IN_PROGRESS_STATUSES = new Set([
   "research_complete",
   "planning",
   "generating_options",
+  "evaluating",
 ]);
 
 type PlanAngle = {
@@ -62,14 +69,14 @@ export default async function ContentRequestDetailPage({
     .where(eq(sources.requestId, id))
     .orderBy(desc(sources.relevanceScore));
 
-  const drafts = await db
+  const allDrafts = await db
     .select()
     .from(articleDrafts)
     .where(eq(articleDrafts.requestId, id))
-    .orderBy(asc(articleDrafts.createdAt));
+    .orderBy(asc(articleDrafts.version));
 
   let options: ArticleOption[] = [];
-  if (drafts.length > 0) {
+  if (allDrafts.length > 0) {
     const [plan] = await db
       .select()
       .from(contentPlans)
@@ -77,6 +84,38 @@ export default async function ContentRequestDetailPage({
       .orderBy(desc(contentPlans.createdAt))
       .limit(1);
     const angles = ((plan?.planJson as { angles?: PlanAngle[] } | null)?.angles ?? []) as PlanAngle[];
+
+    const draftIds = allDrafts.map((d) => d.id);
+
+    const evalRows = await db
+      .select()
+      .from(evaluations)
+      .where(inArray(evaluations.draftId, draftIds))
+      .orderBy(asc(evaluations.createdAt));
+
+    const evalByDraftId = new Map<string, Evaluation>();
+    for (const row of evalRows) {
+      if (!row.draftId) continue;
+      evalByDraftId.set(row.draftId, {
+        overallStatus: row.overallStatus,
+        criterionScores: (row.criterionScores as EvaluationCriterionScore[] | null) ?? [],
+        unsupportedClaims: (row.unsupportedClaims as string[] | null) ?? [],
+        recommendedChanges: row.recommendedChanges,
+        createdAt: row.createdAt,
+      });
+    }
+
+    // Group by variant label; the highest version per group is the current
+    // option shown on the cards, the whole group is its version history.
+    const byVariant = new Map<string, typeof allDrafts>();
+    for (const draft of allDrafts) {
+      const key = draft.variantLabel ?? draft.id;
+      byVariant.set(key, [...(byVariant.get(key) ?? []), draft]);
+    }
+
+    const leafIds = [...byVariant.values()].map(
+      (group) => group[group.length - 1]!.id,
+    );
 
     const draftSourceRows = await db
       .select({
@@ -86,25 +125,32 @@ export default async function ContentRequestDetailPage({
       })
       .from(draftSources)
       .innerJoin(sources, eq(draftSources.sourceId, sources.id))
-      .where(
-        inArray(
-          draftSources.draftId,
-          drafts.map((d) => d.id),
-        ),
-      );
+      .where(inArray(draftSources.draftId, leafIds));
 
-    options = drafts.map((draft) => ({
-      id: draft.id,
-      variantLabel: draft.variantLabel,
-      title: draft.title,
-      bodyMarkdown: draft.bodyMarkdown,
-      status: draft.status,
-      angle:
-        angles.find((a) => a.variant_label === draft.variantLabel)?.angle ?? null,
-      sources: draftSourceRows
-        .filter((row) => row.draftId === draft.id)
-        .map((row) => ({ title: row.title, url: row.url })),
-    }));
+    options = [...byVariant.values()].map((group) => {
+      const leaf = group[group.length - 1]!;
+      const versions: DraftVersion[] = group.map((d) => ({
+        id: d.id,
+        version: d.version,
+        isRevision: d.parentDraftId !== null,
+        createdAt: d.createdAt,
+        evaluation: evalByDraftId.get(d.id) ?? null,
+      }));
+
+      return {
+        id: leaf.id,
+        variantLabel: leaf.variantLabel,
+        title: leaf.title,
+        bodyMarkdown: leaf.bodyMarkdown,
+        status: leaf.status,
+        angle: angles.find((a) => a.variant_label === leaf.variantLabel)?.angle ?? null,
+        sources: draftSourceRows
+          .filter((row) => row.draftId === leaf.id)
+          .map((row) => ({ title: row.title, url: row.url })),
+        evaluation: evalByDraftId.get(leaf.id) ?? null,
+        versions,
+      };
+    });
   }
 
   const steps = (job?.steps as TimelineStep[] | null) ?? [];

@@ -1,3 +1,25 @@
+export type EvaluationCriterionScore = {
+  criterion: string;
+  score: number;
+  note: string;
+};
+
+export type Evaluation = {
+  overallStatus: string | null;
+  criterionScores: EvaluationCriterionScore[];
+  unsupportedClaims: string[];
+  recommendedChanges: string | null;
+  createdAt: Date;
+};
+
+export type DraftVersion = {
+  id: string;
+  version: number;
+  isRevision: boolean;
+  createdAt: Date;
+  evaluation: Evaluation | null;
+};
+
 export type ArticleOption = {
   id: string;
   variantLabel: string | null;
@@ -6,4 +28,6 @@ export type ArticleOption = {
   status: string;
   angle: string | null;
   sources: { title: string | null; url: string }[];
+  evaluation: Evaluation | null;
+  versions: DraftVersion[];
 };

@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { EvaluationPanel } from "./evaluation-panel";
+import { VersionHistory } from "./version-history";
 import type { ArticleOption } from "./types";
 
 export function ArticlePreviewDialog({
@@ -37,6 +39,11 @@ export function ArticlePreviewDialog({
         <article className="max-w-article font-serif text-[17px] leading-[1.75] text-foreground">
           <ReactMarkdown>{option.bodyMarkdown || ""}</ReactMarkdown>
         </article>
+
+        <div className="space-y-4">
+          {option.evaluation && <EvaluationPanel evaluation={option.evaluation} />}
+          <VersionHistory versions={option.versions} />
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
