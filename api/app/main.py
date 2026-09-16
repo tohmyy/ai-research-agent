@@ -7,6 +7,8 @@ No pipeline logic is implemented here yet.
 """
 from fastapi import FastAPI
 
+from app.pipeline.router import router as pipeline_router
+
 
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application.
@@ -30,6 +32,8 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         """Liveness check used by Phase 0 verification and later deploys."""
         return {"status": "ok"}
+
+    app.include_router(pipeline_router)
 
     return app
 
