@@ -5,5 +5,7 @@ generates multiple full article options (`article_drafts`) via Claude
 structured outputs, following `assets/seo-best-practices.md`. Populates
 `draft_sources` to record which sources/chunks fed each draft.
 
-Implemented in Phase 3 — see BUILD-PLAN.md. No logic lives here yet.
+See `claude_client.py` (structured-output wrapper), `context.py` (assembles
+retrieved chunks into a labeled prompt block), `planning.py`, `drafting.py`,
+and `pipeline.py` (orchestration, called from the research pipeline).
 """

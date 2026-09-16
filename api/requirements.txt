@@ -12,7 +12,7 @@ sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
 
 # Third-party integrations (unused in Phase 0; wired up in later phases per BUILD-PLAN.md)
-anthropic==0.42.0
+anthropic==1.6.0
 firecrawl-py==1.13.5
 voyageai==0.3.2
 sendgrid==6.11.0
