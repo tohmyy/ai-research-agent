@@ -76,26 +76,12 @@ function StepRow({ step }: { step: TimelineStep }) {
   );
 }
 
-export function ActivityTimeline({
-  steps,
-  showUpcoming,
-}: {
-  steps: TimelineStep[];
-  showUpcoming: boolean;
-}) {
+export function ActivityTimeline({ steps }: { steps: TimelineStep[] }) {
   return (
     <ol className="space-y-0">
       {steps.map((step) => (
         <StepRow key={step.key} step={step} />
       ))}
-      {showUpcoming && (
-        <li className="flex gap-3">
-          <StepIcon status="pending" />
-          <p className="text-body-medium text-muted-foreground">
-            Generating article options
-          </p>
-        </li>
-      )}
     </ol>
   );
 }

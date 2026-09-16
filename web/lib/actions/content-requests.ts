@@ -3,11 +3,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { contentRequests } from "@/lib/db/schema";
+import { articleDrafts, contentRequests } from "@/lib/db/schema";
 import { startPipeline, FastApiError } from "@/lib/fastapi";
 
 export type ContentRequestFormState = {
@@ -156,4 +156,32 @@ export async function startResearch(
   revalidatePath("/content-requests");
   revalidatePath("/dashboard");
   redirect(`/content-requests/${created.id}`);
+}
+
+export async function selectArticle(
+  requestId: string,
+  draftId: string,
+): Promise<void> {
+  await requireUserId();
+
+  await db
+    .update(articleDrafts)
+    .set({ status: "selected", updatedAt: new Date() })
+    .where(eq(articleDrafts.id, draftId));
+
+  await db
+    .update(articleDrafts)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(
+      and(eq(articleDrafts.requestId, requestId), ne(articleDrafts.id, draftId)),
+    );
+
+  await db
+    .update(contentRequests)
+    .set({ status: "selected", updatedAt: new Date() })
+    .where(eq(contentRequests.id, requestId));
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/content-requests");
+  revalidatePath("/dashboard");
 }
