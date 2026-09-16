@@ -19,6 +19,7 @@ const STATUS_META: Record<string, { label: string; icon: LucideIcon; tone: Tone 
   draft: { label: "Draft", icon: FileEdit, tone: "muted" },
   submitted: { label: "Submitted", icon: Clock3, tone: "muted" },
   researching: { label: "Researching", icon: LoaderCircle, tone: "info" },
+  research_complete: { label: "Research Complete", icon: CheckCircle2, tone: "success" },
   planning: { label: "Planning", icon: LoaderCircle, tone: "info" },
   generating_options: { label: "Generating Options", icon: Sparkles, tone: "primary" },
   evaluating: { label: "Evaluating", icon: LoaderCircle, tone: "info" },

@@ -141,22 +141,24 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {recent.map((request) => (
-              <Card key={request.id} className="border-border bg-card shadow-subtle">
-                <CardContent className="flex items-center justify-between gap-4 py-4">
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-body-medium">{request.rawIdea}</p>
-                    <p className="truncate text-caption text-muted-foreground">
-                      {request.targetAudience}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-4">
-                    <span className="text-caption text-muted-foreground">
-                      {formatDate(request.createdAt)}
-                    </span>
-                    <StatusBadge status={request.status} />
-                  </div>
-                </CardContent>
-              </Card>
+              <Link key={request.id} href={`/content-requests/${request.id}`}>
+                <Card className="border-border bg-card shadow-subtle transition-colors duration-150 hover:bg-muted">
+                  <CardContent className="flex items-center justify-between gap-4 py-4">
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-body-medium">{request.rawIdea}</p>
+                      <p className="truncate text-caption text-muted-foreground">
+                        {request.targetAudience}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-4">
+                      <span className="text-caption text-muted-foreground">
+                        {formatDate(request.createdAt)}
+                      </span>
+                      <StatusBadge status={request.status} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

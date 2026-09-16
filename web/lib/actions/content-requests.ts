@@ -88,6 +88,31 @@ export async function saveDraft(
   redirect("/content-requests");
 }
 
+export async function retryResearch(requestId: string): Promise<void> {
+  await requireUserId();
+
+  await db
+    .update(contentRequests)
+    .set({ status: "researching", updatedAt: new Date() })
+    .where(eq(contentRequests.id, requestId));
+
+  try {
+    await startPipeline(requestId);
+  } catch (error) {
+    const message =
+      error instanceof FastApiError ? error.message : "Unknown error";
+    await db
+      .update(contentRequests)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(contentRequests.id, requestId));
+    throw new Error(`Could not restart research: ${message}`);
+  }
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/content-requests");
+  revalidatePath("/dashboard");
+}
+
 export async function startResearch(
   _prevState: ContentRequestFormState,
   formData: FormData,
@@ -130,5 +155,5 @@ export async function startResearch(
 
   revalidatePath("/content-requests");
   revalidatePath("/dashboard");
-  redirect("/content-requests");
+  redirect(`/content-requests/${created.id}`);
 }

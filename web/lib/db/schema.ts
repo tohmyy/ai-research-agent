@@ -90,6 +90,9 @@ export const researchJobs = pgTable("research_jobs", {
   stage: text("stage"),
   status: text("status").notNull().default("pending"), // pending | running | succeeded | failed
   error: text("error"),
+  // Ordered array of { key, label, status, detail, at } — backs the
+  // expandable activity timeline in ui-design-spec.md §23.
+  steps: jsonb("steps"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

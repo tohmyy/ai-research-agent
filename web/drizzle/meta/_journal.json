@@ -8,6 +8,13 @@
       "when": 1789422432532,
       "tag": "0000_young_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789523452828,
+      "tag": "0001_optimal_viper",
+      "breakpoints": true
     }
   ]
 }

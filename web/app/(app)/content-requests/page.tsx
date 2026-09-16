@@ -70,7 +70,12 @@ export default async function ContentRequestsPage() {
               {requests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell className="max-w-sm truncate font-medium">
-                    {request.rawIdea}
+                    <Link
+                      href={`/content-requests/${request.id}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {request.rawIdea}
+                    </Link>
                   </TableCell>
                   <TableCell className="max-w-xs truncate text-muted-foreground">
                     {request.targetAudience}
