@@ -5,9 +5,11 @@ share one `research_jobs` row/`JobTracker` so the UI sees one continuous
 sequence of steps (BUILD-PLAN.md Phase 3, ui-design-spec.md §22-23).
 
 Sequence: build context from the request's included sources -> propose a
-few distinct article angles -> write a full article per angle -> mark
-`content_requests.status = "options_ready"`. Any failure propagates to the
-caller, which fails the job/request exactly like a research failure.
+few distinct article angles -> write a full article per angle -> hand off
+to the evaluation pipeline (same job/session), which owns the final
+`content_requests.status = "options_ready"` transition. Any failure
+propagates to the caller, which fails the job/request exactly like a
+research failure.
 """
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.evaluation.pipeline import run_evaluation_pipeline
 from app.generation.claude_client import GenerationError
 from app.generation.context import build_source_context
 from app.generation.drafting import generate_article
@@ -113,9 +116,10 @@ async def run_generation_pipeline(
     await session.commit()
     await job.complete_step(f"{len(angles)} article options generated")
 
-    await job.succeed()
     await session.execute(
-        text("UPDATE content_requests SET status = 'options_ready', updated_at = :now WHERE id = :id"),
+        text("UPDATE content_requests SET status = 'evaluating', updated_at = :now WHERE id = :id"),
         {"now": now(), "id": request_uuid},
     )
     await session.commit()
+
+    await run_evaluation_pipeline(session, job, request_uuid)

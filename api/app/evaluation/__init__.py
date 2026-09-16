@@ -6,5 +6,7 @@ writing `evaluations`. Drives the bounded auto-revision loop (≤2 cycles,
 chained via `article_drafts.parent_draft_id`) before a human ever reviews
 the draft.
 
-Implemented in Phase 4 — see BUILD-PLAN.md. No logic lives here yet.
+See `rubric.py` (tool schema + system prompt), `evaluator.py`, `revision.py`,
+and `pipeline.py` (the evaluate/revise loop, called from the generation
+pipeline once the initial options are drafted).
 """
