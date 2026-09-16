@@ -1,22 +1,23 @@
-"""Phase 1 pipeline-trigger stub.
+"""Pipeline trigger endpoint.
 
-`POST /pipeline/start` writes one `research_jobs` row and returns
-immediately. It proves the Next.js -> FastAPI -> Postgres wiring end to end
-without doing any real research — Phase 2 replaces the body of
-`start_pipeline` with real Firecrawl/RAG logic (see BUILD-PLAN.md), without
-changing this endpoint's contract.
+`POST /pipeline/start` creates the `research_jobs` row synchronously (fast)
+and schedules the real work — `research.pipeline.run_research_pipeline` —
+as a FastAPI background task, returning immediately. Next.js sets
+`content_requests.status = "researching"` itself right after this call
+succeeds; the background task is responsible for every later transition
+(`research_complete` or `failed`), since nothing else observes it finish.
 """
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
+from app.research.pipeline import run_research_pipeline
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -33,6 +34,7 @@ class StartPipelineResponse(BaseModel):
 @router.post("/start", response_model=StartPipelineResponse)
 async def start_pipeline(
     payload: StartPipelineRequest,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db_session),
 ) -> StartPipelineResponse:
     try:
@@ -42,20 +44,21 @@ async def start_pipeline(
             status_code=400, detail="request_id must be a valid UUID"
         ) from exc
 
-    # `research_jobs.started_at`/`completed_at` are timestamp columns without
-    # a time zone, so asyncpg needs a naive datetime here (still UTC).
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
     result = await session.execute(
         text(
             """
-            INSERT INTO research_jobs (request_id, stage, status, started_at, completed_at)
-            VALUES (:request_id, 'stub', 'succeeded', :now, :now)
+            INSERT INTO research_jobs (request_id, stage, status)
+            VALUES (:request_id, 'queued', 'pending')
             RETURNING id
             """
         ),
-        {"request_id": request_uuid, "now": now},
+        {"request_id": request_uuid},
     )
     await session.commit()
     research_job_id = result.scalar_one()
 
-    return StartPipelineResponse(research_job_id=str(research_job_id), status="succeeded")
+    background_tasks.add_task(
+        run_research_pipeline, str(request_uuid), str(research_job_id)
+    )
+
+    return StartPipelineResponse(research_job_id=str(research_job_id), status="pending")
