@@ -3,6 +3,7 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
+  approvals,
   articleDrafts,
   contentPlans,
   contentRequests,
@@ -18,6 +19,7 @@ import { SourceExplorer } from "@/components/research/source-explorer";
 import { ResearchFailure } from "@/components/research/research-failure";
 import { LiveRefresh } from "@/components/research/live-refresh";
 import { ArticleOptions } from "@/components/content-requests/article-options";
+import { ReviewWorkspace } from "@/components/content-requests/review-workspace";
 import type {
   ArticleOption,
   DraftVersion,
@@ -33,6 +35,8 @@ const IN_PROGRESS_STATUSES = new Set([
   "generating_options",
   "evaluating",
 ]);
+
+const REVIEW_STATUSES = new Set(["selected", "approved", "rejected"]);
 
 type PlanAngle = {
   variant_label: string;
@@ -153,9 +157,28 @@ export default async function ContentRequestDetailPage({
     });
   }
 
+  let reviewedOption: ArticleOption | null = null;
+  if (REVIEW_STATUSES.has(request.status) && options.length > 0) {
+    // The reviewed slot is whichever variant has an `approvals` row (Phase 5
+    // actions always target it), or — before any review action has
+    // happened yet — the one Phase 3's selectArticle marked "selected".
+    const [approvedTarget] = await db
+      .select({ variantLabel: articleDrafts.variantLabel })
+      .from(approvals)
+      .innerJoin(articleDrafts, eq(articleDrafts.id, approvals.targetId))
+      .where(eq(articleDrafts.requestId, id))
+      .orderBy(desc(approvals.createdAt))
+      .limit(1);
+
+    reviewedOption =
+      options.find((o) => o.variantLabel === approvedTarget?.variantLabel) ??
+      options.find((o) => o.status === "selected") ??
+      null;
+  }
+
   const steps = (job?.steps as TimelineStep[] | null) ?? [];
   const inProgress = IN_PROGRESS_STATUSES.has(request.status);
-  const hasOptions = options.length > 0;
+  const hasOptions = options.length > 0 && !REVIEW_STATUSES.has(request.status);
 
   return (
     <div className="space-y-8">
@@ -189,6 +212,19 @@ export default async function ContentRequestDetailPage({
                 requestId={request.id}
                 options={options}
                 alreadySelected={request.status !== "options_ready"}
+              />
+            </section>
+          )}
+
+          {reviewedOption && (
+            <section className="space-y-4">
+              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
+                Review
+              </h2>
+              <ReviewWorkspace
+                requestId={request.id}
+                option={reviewedOption}
+                readOnly={request.status !== "selected"}
               />
             </section>
           )}

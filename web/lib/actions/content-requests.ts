@@ -7,8 +7,8 @@ import { eq, inArray } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { articleDrafts, contentRequests } from "@/lib/db/schema";
-import { startPipeline, FastApiError } from "@/lib/fastapi";
+import { approvals, articleDrafts, contentRequests, draftSources } from "@/lib/db/schema";
+import { aiAssistEdit, requestRevision, startPipeline, FastApiError } from "@/lib/fastapi";
 
 export type ContentRequestFormState = {
   error?: string;
@@ -208,4 +208,154 @@ export async function selectArticle(
   revalidatePath(`/content-requests/${requestId}`);
   revalidatePath("/content-requests");
   revalidatePath("/dashboard");
+}
+
+export async function approveArticle(
+  requestId: string,
+  draftId: string,
+  notes?: string,
+): Promise<void> {
+  const userId = await requireUserId();
+
+  await db.insert(approvals).values({
+    targetType: "article",
+    targetId: draftId,
+    decision: "approve",
+    reviewerId: userId,
+    notes: notes || null,
+  });
+
+  await db
+    .update(articleDrafts)
+    .set({ status: "approved", updatedAt: new Date() })
+    .where(eq(articleDrafts.id, draftId));
+
+  await db
+    .update(contentRequests)
+    .set({ status: "approved", updatedAt: new Date() })
+    .where(eq(contentRequests.id, requestId));
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/review");
+  revalidatePath("/dashboard");
+}
+
+export async function rejectArticle(
+  requestId: string,
+  draftId: string,
+  notes: string,
+): Promise<void> {
+  const userId = await requireUserId();
+
+  await db.insert(approvals).values({
+    targetType: "article",
+    targetId: draftId,
+    decision: "reject",
+    reviewerId: userId,
+    notes,
+  });
+
+  await db
+    .update(articleDrafts)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(eq(articleDrafts.id, draftId));
+
+  await db
+    .update(contentRequests)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(eq(contentRequests.id, requestId));
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/review");
+  revalidatePath("/dashboard");
+}
+
+export async function requestArticleRevision(
+  requestId: string,
+  draftId: string,
+  notes: string,
+): Promise<void> {
+  const userId = await requireUserId();
+
+  await db.insert(approvals).values({
+    targetType: "article",
+    targetId: draftId,
+    decision: "revise",
+    reviewerId: userId,
+    notes,
+  });
+
+  await requestRevision(draftId, notes);
+
+  revalidatePath(`/content-requests/${requestId}`);
+}
+
+async function copyDraftSources(fromDraftId: string, toDraftId: string) {
+  const rows = await db
+    .select({ sourceId: draftSources.sourceId, chunkIds: draftSources.chunkIds })
+    .from(draftSources)
+    .where(eq(draftSources.draftId, fromDraftId));
+
+  for (const row of rows) {
+    await db.insert(draftSources).values({
+      draftId: toDraftId,
+      sourceId: row.sourceId,
+      chunkIds: row.chunkIds,
+    });
+  }
+}
+
+/** Persists a new draft version — used by both a manual editor save and an
+ * accepted AI Assistant suggestion (see Phase 5 plan: same operation
+ * either way, so one code path). */
+export async function saveDraftRevision(
+  requestId: string,
+  currentDraftId: string,
+  title: string,
+  bodyMarkdown: string,
+): Promise<void> {
+  await requireUserId();
+
+  const [current] = await db
+    .select()
+    .from(articleDrafts)
+    .where(eq(articleDrafts.id, currentDraftId))
+    .limit(1);
+  if (!current) {
+    throw new Error("Draft not found");
+  }
+
+  const [created] = await db
+    .insert(articleDrafts)
+    .values({
+      requestId,
+      version: current.version + 1,
+      parentDraftId: current.id,
+      variantLabel: current.variantLabel,
+      title,
+      bodyMarkdown,
+      // Carries forward whatever the edited draft's status was (almost
+      // always "selected", since editing only happens while under
+      // review) — the new version replaces it as "the current one", and
+      // page.tsx's fallback lookup for the reviewed option depends on
+      // finding a leaf draft with status "selected" before any
+      // approvals row exists yet.
+      status: current.status,
+      revisionSource: "human_edit",
+    })
+    .returning({ id: articleDrafts.id });
+
+  await copyDraftSources(current.id, created!.id);
+
+  revalidatePath(`/content-requests/${requestId}`);
+}
+
+export async function proposeAiAssistEdit(
+  draftId: string,
+  instruction: string,
+): Promise<{ title: string; bodyMarkdown: string }> {
+  await requireUserId();
+
+  const result = await aiAssistEdit(draftId, instruction);
+  return { title: result.title, bodyMarkdown: result.body_markdown };
 }

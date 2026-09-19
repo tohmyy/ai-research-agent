@@ -149,6 +149,9 @@ export const articleDrafts = pgTable("article_drafts", {
   bodyMarkdown: text("body_markdown"),
   // drafted | evaluated | revising | selected | approved | rejected
   status: text("status").notNull().default("drafted"),
+  // initial | ai_revision | human_edit — who/what produced this version,
+  // shown in the UI's Version History (ui-design-spec.md §54).
+  revisionSource: text("revision_source").notNull().default("initial"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -15,6 +15,13 @@
       "when": 1789523452828,
       "tag": "0001_optimal_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789599099871,
+      "tag": "0002_cold_exodus",
+      "breakpoints": true
     }
   ]
 }

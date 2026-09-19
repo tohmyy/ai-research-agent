@@ -1,0 +1,1 @@
+ALTER TABLE "article_drafts" ADD COLUMN "revision_source" text DEFAULT 'initial' NOT NULL;
