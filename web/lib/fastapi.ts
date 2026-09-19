@@ -77,3 +77,58 @@ export async function aiAssistEdit(
 
   return res.json() as Promise<AiAssistResponse>;
 }
+
+type AdaptChannelsResponse = {
+  research_job_id: string;
+  status: string;
+};
+
+export async function startChannelAdaptation(
+  requestId: string,
+  draftId: string,
+): Promise<AdaptChannelsResponse> {
+  const res = await fetch(`${FASTAPI_BASE_URL}/pipeline/adapt-channels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request_id: requestId, draft_id: draftId }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new FastApiError(
+      `FastAPI /pipeline/adapt-channels failed (${res.status}): ${body}`,
+    );
+  }
+
+  return res.json() as Promise<AdaptChannelsResponse>;
+}
+
+type ChannelContentResponse = {
+  id: string;
+  version: number;
+  subject: string | null;
+  body: string;
+};
+
+export async function requestChannelRevision(
+  channelContentId: string,
+  note: string,
+): Promise<ChannelContentResponse> {
+  const res = await fetch(
+    `${FASTAPI_BASE_URL}/channel-content/${channelContentId}/request-revision`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new FastApiError(
+      `FastAPI /channel-content/${channelContentId}/request-revision failed (${res.status}): ${body}`,
+    );
+  }
+
+  return res.json() as Promise<ChannelContentResponse>;
+}

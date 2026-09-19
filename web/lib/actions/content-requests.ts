@@ -7,8 +7,21 @@ import { eq, inArray } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { approvals, articleDrafts, contentRequests, draftSources } from "@/lib/db/schema";
-import { aiAssistEdit, requestRevision, startPipeline, FastApiError } from "@/lib/fastapi";
+import {
+  approvals,
+  articleDrafts,
+  channelContent,
+  contentRequests,
+  draftSources,
+} from "@/lib/db/schema";
+import {
+  aiAssistEdit,
+  requestRevision,
+  requestChannelRevision,
+  startChannelAdaptation,
+  startPipeline,
+  FastApiError,
+} from "@/lib/fastapi";
 
 export type ContentRequestFormState = {
   error?: string;
@@ -232,8 +245,20 @@ export async function approveArticle(
 
   await db
     .update(contentRequests)
-    .set({ status: "approved", updatedAt: new Date() })
+    .set({ status: "channel_adapting", updatedAt: new Date() })
     .where(eq(contentRequests.id, requestId));
+
+  try {
+    await startChannelAdaptation(requestId, draftId);
+  } catch (error) {
+    const message =
+      error instanceof FastApiError ? error.message : "Unknown error";
+    await db
+      .update(contentRequests)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(contentRequests.id, requestId));
+    throw new Error(`Could not start channel adaptation: ${message}`);
+  }
 
   revalidatePath(`/content-requests/${requestId}`);
   revalidatePath("/review");
@@ -346,6 +371,112 @@ export async function saveDraftRevision(
     .returning({ id: articleDrafts.id });
 
   await copyDraftSources(current.id, created!.id);
+
+  revalidatePath(`/content-requests/${requestId}`);
+}
+
+export async function approveChannelContent(
+  requestId: string,
+  channelContentId: string,
+  notes?: string,
+): Promise<void> {
+  const userId = await requireUserId();
+
+  await db.insert(approvals).values({
+    targetType: "channel_content",
+    targetId: channelContentId,
+    decision: "approve",
+    reviewerId: userId,
+    notes: notes || null,
+  });
+
+  await db
+    .update(channelContent)
+    .set({ status: "approved", updatedAt: new Date() })
+    .where(eq(channelContent.id, channelContentId));
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/review");
+  revalidatePath("/dashboard");
+}
+
+export async function rejectChannelContent(
+  requestId: string,
+  channelContentId: string,
+  notes: string,
+): Promise<void> {
+  const userId = await requireUserId();
+
+  await db.insert(approvals).values({
+    targetType: "channel_content",
+    targetId: channelContentId,
+    decision: "reject",
+    reviewerId: userId,
+    notes,
+  });
+
+  await db
+    .update(channelContent)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(eq(channelContent.id, channelContentId));
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/review");
+  revalidatePath("/dashboard");
+}
+
+export async function requestChannelContentRevision(
+  requestId: string,
+  channelContentId: string,
+  notes: string,
+): Promise<void> {
+  const userId = await requireUserId();
+
+  await db.insert(approvals).values({
+    targetType: "channel_content",
+    targetId: channelContentId,
+    decision: "revise",
+    reviewerId: userId,
+    notes,
+  });
+
+  await requestChannelRevision(channelContentId, notes);
+
+  revalidatePath(`/content-requests/${requestId}`);
+}
+
+/** Persists a new channel_content version — a plain manual edit, no AI
+ * assistant for channel content (Phase 6 scope: backlogged). */
+export async function saveChannelContentEdit(
+  requestId: string,
+  currentContentId: string,
+  subject: string | null,
+  body: string,
+): Promise<void> {
+  await requireUserId();
+
+  const [current] = await db
+    .select()
+    .from(channelContent)
+    .where(eq(channelContent.id, currentContentId))
+    .limit(1);
+  if (!current) {
+    throw new Error("Channel content not found");
+  }
+
+  await db.insert(channelContent).values({
+    draftId: current.draftId,
+    channel: current.channel,
+    version: current.version + 1,
+    parentContentId: current.id,
+    // Carries forward the edited content's status (almost always
+    // "evaluated", since editing only happens during review) — the new
+    // version replaces it as the current one under review.
+    status: current.status,
+    revisionSource: "human_edit",
+    subject,
+    body,
+  });
 
   revalidatePath(`/content-requests/${requestId}`);
 }

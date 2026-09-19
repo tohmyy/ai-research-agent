@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import {
   approvals,
   articleDrafts,
+  channelContent,
   contentPlans,
   contentRequests,
   draftSources,
@@ -20,8 +21,10 @@ import { ResearchFailure } from "@/components/research/research-failure";
 import { LiveRefresh } from "@/components/research/live-refresh";
 import { ArticleOptions } from "@/components/content-requests/article-options";
 import { ReviewWorkspace } from "@/components/content-requests/review-workspace";
+import { ChannelReview } from "@/components/content-requests/channel-review";
 import type {
   ArticleOption,
+  ChannelContentItem,
   DraftVersion,
   Evaluation,
   EvaluationCriterionScore,
@@ -34,9 +37,16 @@ const IN_PROGRESS_STATUSES = new Set([
   "planning",
   "generating_options",
   "evaluating",
+  "channel_adapting",
 ]);
 
-const REVIEW_STATUSES = new Set(["selected", "approved", "rejected"]);
+const REVIEW_STATUSES = new Set([
+  "selected",
+  "approved",
+  "rejected",
+  "channel_adapting",
+  "channel_review",
+]);
 
 type PlanAngle = {
   variant_label: string;
@@ -176,6 +186,66 @@ export default async function ContentRequestDetailPage({
       null;
   }
 
+  const allChannelContent = reviewedOption
+    ? await db
+        .select()
+        .from(channelContent)
+        .where(eq(channelContent.draftId, reviewedOption.id))
+        .orderBy(asc(channelContent.version))
+    : [];
+
+  let channelItems: ChannelContentItem[] = [];
+  if (allChannelContent.length > 0) {
+    const contentIds = allChannelContent.map((c) => c.id);
+
+    const channelEvalRows = await db
+      .select()
+      .from(evaluations)
+      .where(inArray(evaluations.channelContentId, contentIds))
+      .orderBy(asc(evaluations.createdAt));
+
+    const evalByContentId = new Map<string, Evaluation>();
+    for (const row of channelEvalRows) {
+      if (!row.channelContentId) continue;
+      evalByContentId.set(row.channelContentId, {
+        overallStatus: row.overallStatus,
+        criterionScores: (row.criterionScores as EvaluationCriterionScore[] | null) ?? [],
+        unsupportedClaims: (row.unsupportedClaims as string[] | null) ?? [],
+        recommendedChanges: row.recommendedChanges,
+        createdAt: row.createdAt,
+      });
+    }
+
+    // Group by channel; the highest version per group is the current
+    // content shown, the whole group is its version history — same
+    // leaf/group pattern as article options above.
+    const byChannel = new Map<string, typeof allChannelContent>();
+    for (const item of allChannelContent) {
+      byChannel.set(item.channel, [...(byChannel.get(item.channel) ?? []), item]);
+    }
+
+    channelItems = [...byChannel.values()].map((group) => {
+      const leaf = group[group.length - 1]!;
+      const versions: DraftVersion[] = group.map((c) => ({
+        id: c.id,
+        version: c.version,
+        isRevision: c.parentContentId !== null,
+        createdAt: c.createdAt,
+        evaluation: evalByContentId.get(c.id) ?? null,
+      }));
+
+      return {
+        id: leaf.id,
+        channel: leaf.channel as ChannelContentItem["channel"],
+        subject: leaf.subject,
+        body: leaf.body,
+        status: leaf.status,
+        evaluation: evalByContentId.get(leaf.id) ?? null,
+        versions,
+      };
+    });
+  }
+
   const steps = (job?.steps as TimelineStep[] | null) ?? [];
   const inProgress = IN_PROGRESS_STATUSES.has(request.status);
   const hasOptions = options.length > 0 && !REVIEW_STATUSES.has(request.status);
@@ -226,6 +296,15 @@ export default async function ContentRequestDetailPage({
                 option={reviewedOption}
                 readOnly={request.status !== "selected"}
               />
+            </section>
+          )}
+
+          {channelItems.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
+                Channel Content
+              </h2>
+              <ChannelReview requestId={request.id} items={channelItems} />
             </section>
           )}
 

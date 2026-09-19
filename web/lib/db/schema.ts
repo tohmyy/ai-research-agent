@@ -173,6 +173,12 @@ export const channelContent = pgTable("channel_content", {
     .notNull()
     .references(() => articleDrafts.id, { onDelete: "cascade" }),
   channel: text("channel").notNull(), // linkedin | x | newsletter
+  version: integer("version").notNull().default(1),
+  parentContentId: uuid("parent_content_id"),
+  // initial | ai_revision | human_edit — same convention as
+  // articleDrafts.revisionSource, drives the same Version History UI.
+  revisionSource: text("revision_source").notNull().default("initial"),
+  subject: text("subject"), // newsletter only
   body: text("body"),
   status: text("status").notNull().default("drafted"),
   evaluationId: uuid("evaluation_id"),

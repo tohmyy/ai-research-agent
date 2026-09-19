@@ -31,3 +31,13 @@ export type ArticleOption = {
   evaluation: Evaluation | null;
   versions: DraftVersion[];
 };
+
+export type ChannelContentItem = {
+  id: string;
+  channel: "linkedin" | "x" | "newsletter";
+  subject: string | null;
+  body: string | null;
+  status: string;
+  evaluation: Evaluation | null;
+  versions: DraftVersion[];
+};
