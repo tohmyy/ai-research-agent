@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
 import {
   Bold,
@@ -149,7 +148,14 @@ export function ArticleEditor({
   const [dirty, setDirty] = useState(false);
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: false }), Markdown],
+    extensions: [
+      // TipTap v3's StarterKit already bundles Link — configuring it here
+      // instead of adding a separate `@tiptap/extension-link` avoids a
+      // "duplicate extension" warning (found via the markdown round-trip
+      // check; harmless in output, but worth not shipping a warning).
+      StarterKit.configure({ link: { openOnClick: false } }),
+      Markdown,
+    ],
     content: initialMarkdown,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
