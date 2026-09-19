@@ -19,6 +19,7 @@ import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.session import get_session_factory
 from app.evaluation.evaluator import evaluate_draft
 from app.evaluation.revision import revise_draft
 from app.generation.context import build_context_for_draft
@@ -40,7 +41,7 @@ def _format_recommended_changes(evaluation: dict) -> str:
     return "\n".join(lines)
 
 
-async def _insert_evaluation(session: AsyncSession, draft_id: uuid.UUID, evaluation: dict) -> None:
+async def insert_evaluation(session: AsyncSession, draft_id: uuid.UUID, evaluation: dict) -> None:
     await session.execute(
         text(
             """
@@ -59,7 +60,7 @@ async def _insert_evaluation(session: AsyncSession, draft_id: uuid.UUID, evaluat
     await session.commit()
 
 
-async def _copy_draft_sources(session: AsyncSession, from_draft_id: uuid.UUID, to_draft_id: uuid.UUID) -> None:
+async def copy_draft_sources(session: AsyncSession, from_draft_id: uuid.UUID, to_draft_id: uuid.UUID) -> None:
     rows = (
         await session.execute(
             text("SELECT source_id, chunk_ids FROM draft_sources WHERE draft_id = :draft_id"),
@@ -87,7 +88,7 @@ async def _evaluate_and_revise_one(session: AsyncSession, draft_row) -> bool:
     for attempt in range(MAX_REVISION_CYCLES + 1):
         context = await build_context_for_draft(session, current_id)
         evaluation = evaluate_draft(current_title, current_body, context)
-        await _insert_evaluation(session, current_id, evaluation)
+        await insert_evaluation(session, current_id, evaluation)
 
         if evaluation["overall_status"] == "pass" or attempt == MAX_REVISION_CYCLES:
             break
@@ -97,8 +98,8 @@ async def _evaluate_and_revise_one(session: AsyncSession, draft_row) -> bool:
             await session.execute(
                 text(
                     """
-                    INSERT INTO article_drafts (request_id, version, parent_draft_id, variant_label, title, body_markdown, status)
-                    VALUES (:request_id, :version, :parent_draft_id, :variant_label, :title, :body_markdown, 'drafted')
+                    INSERT INTO article_drafts (request_id, version, parent_draft_id, variant_label, title, body_markdown, status, revision_source)
+                    VALUES (:request_id, :version, :parent_draft_id, :variant_label, :title, :body_markdown, 'drafted', 'ai_revision')
                     RETURNING id
                     """
                 ),
@@ -113,7 +114,7 @@ async def _evaluate_and_revise_one(session: AsyncSession, draft_row) -> bool:
             )
         ).scalar_one()
         await session.commit()
-        await _copy_draft_sources(session, current_id, new_id)
+        await copy_draft_sources(session, current_id, new_id)
 
         current_id, current_version, current_title, current_body = (
             new_id,
@@ -149,18 +150,26 @@ async def run_evaluation_pipeline(
         )
     ).all()
 
+    # Each option gets its own fresh session (up to 3 Claude calls apiece)
+    # rather than sharing one across all 3 options — bounds how long any
+    # single connection sits idle between calls (see research/pipeline.py).
+    session_factory = get_session_factory()
     revised_count = 0
     for draft_row in root_drafts:
-        if await _evaluate_and_revise_one(session, draft_row):
-            revised_count += 1
+        async with session_factory() as option_session:
+            job.session = option_session
+            if await _evaluate_and_revise_one(option_session, draft_row):
+                revised_count += 1
 
-    await job.complete_step(
-        f"Evaluated {len(root_drafts)} options, revised {revised_count}"
-    )
+    async with session_factory() as session:
+        job.session = session
+        await job.complete_step(
+            f"Evaluated {len(root_drafts)} options, revised {revised_count}"
+        )
 
-    await job.succeed()
-    await session.execute(
-        text("UPDATE content_requests SET status = 'options_ready', updated_at = :now WHERE id = :id"),
-        {"now": now(), "id": request_uuid},
-    )
-    await session.commit()
+        await job.succeed()
+        await session.execute(
+            text("UPDATE content_requests SET status = 'options_ready', updated_at = :now WHERE id = :id"),
+            {"now": now(), "id": request_uuid},
+        )
+        await session.commit()

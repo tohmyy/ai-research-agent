@@ -32,7 +32,11 @@ def get_engine() -> AsyncEngine:
     """Return the (lazily created, cached) async engine bound to DATABASE_URL."""
     settings = get_settings()
     database_url = settings.DATABASE_URL or _FALLBACK_DATABASE_URL
-    return create_async_engine(database_url, echo=False, future=True)
+    # pool_pre_ping: verify a pooled connection is alive before handing it
+    # out, rather than failing mid-query — Supabase's pooler can drop an
+    # idle connection out from under a long-lived session (observed during
+    # the multi-minute research/generation/evaluation pipeline).
+    return create_async_engine(database_url, echo=False, future=True, pool_pre_ping=True)
 
 
 @lru_cache
