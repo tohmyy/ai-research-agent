@@ -7,6 +7,7 @@ No pipeline logic is implemented here yet.
 """
 from fastapi import FastAPI
 
+from app.channels.router import router as channels_router
 from app.pipeline.router import router as pipeline_router
 from app.review.router import router as review_router
 
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
 
     app.include_router(pipeline_router)
     app.include_router(review_router)
+    app.include_router(channels_router)
 
     return app
 

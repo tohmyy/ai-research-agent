@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.channels.pipeline import run_channel_adaptation_pipeline
 from app.db.session import get_db_session
 from app.research.pipeline import run_research_pipeline
 
@@ -62,3 +63,47 @@ async def start_pipeline(
     )
 
     return StartPipelineResponse(research_job_id=str(research_job_id), status="pending")
+
+
+class AdaptChannelsRequest(BaseModel):
+    request_id: str
+    draft_id: str
+
+
+class AdaptChannelsResponse(BaseModel):
+    research_job_id: str
+    status: str
+
+
+@router.post("/adapt-channels", response_model=AdaptChannelsResponse)
+async def adapt_channels(
+    payload: AdaptChannelsRequest,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_db_session),
+) -> AdaptChannelsResponse:
+    try:
+        request_uuid = uuid.UUID(payload.request_id)
+        draft_uuid = uuid.UUID(payload.draft_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail="request_id and draft_id must be valid UUIDs"
+        ) from exc
+
+    result = await session.execute(
+        text(
+            """
+            INSERT INTO research_jobs (request_id, stage, status)
+            VALUES (:request_id, 'queued', 'pending')
+            RETURNING id
+            """
+        ),
+        {"request_id": request_uuid},
+    )
+    await session.commit()
+    research_job_id = result.scalar_one()
+
+    background_tasks.add_task(
+        run_channel_adaptation_pipeline, str(request_uuid), str(research_job_id), str(draft_uuid)
+    )
+
+    return AdaptChannelsResponse(research_job_id=str(research_job_id), status="pending")

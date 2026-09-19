@@ -28,7 +28,7 @@ from app.pipeline.job_tracker import JobTracker, now
 MAX_REVISION_CYCLES = 2
 
 
-def _format_recommended_changes(evaluation: dict) -> str:
+def format_recommended_changes(evaluation: dict) -> str:
     lines: list[str] = []
     sections = evaluation.get("sections_needing_revision") or []
     if sections:
@@ -54,7 +54,28 @@ async def insert_evaluation(session: AsyncSession, draft_id: uuid.UUID, evaluati
             "criterion_scores": json.dumps(evaluation["criterion_scores"]),
             "overall_status": evaluation["overall_status"],
             "unsupported_claims": json.dumps(evaluation.get("unsupported_claims") or []),
-            "recommended_changes": _format_recommended_changes(evaluation),
+            "recommended_changes": format_recommended_changes(evaluation),
+        },
+    )
+    await session.commit()
+
+
+async def insert_evaluation_for_channel_content(
+    session: AsyncSession, channel_content_id: uuid.UUID, evaluation: dict
+) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO evaluations (channel_content_id, criterion_scores, overall_status, unsupported_claims, recommended_changes)
+            VALUES (:channel_content_id, CAST(:criterion_scores AS jsonb), :overall_status, CAST(:unsupported_claims AS jsonb), :recommended_changes)
+            """
+        ),
+        {
+            "channel_content_id": channel_content_id,
+            "criterion_scores": json.dumps(evaluation["criterion_scores"]),
+            "overall_status": evaluation["overall_status"],
+            "unsupported_claims": json.dumps(evaluation.get("unsupported_claims") or []),
+            "recommended_changes": format_recommended_changes(evaluation),
         },
     )
     await session.commit()
