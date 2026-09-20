@@ -3,13 +3,14 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   approvals,
   articleDrafts,
+  channelConfigs,
   channelContent,
   contentRequests,
   draftSources,
@@ -142,6 +143,61 @@ export async function retryResearch(requestId: string): Promise<void> {
       .set({ status: "failed", updatedAt: new Date() })
       .where(eq(contentRequests.id, requestId));
     throw new Error(`Could not restart research: ${message}`);
+  }
+
+  revalidatePath(`/content-requests/${requestId}`);
+  revalidatePath("/content-requests");
+  revalidatePath("/dashboard");
+}
+
+/** Retries channel adaptation after it failed — used by `ResearchFailure`
+ * when `research_jobs.stage === 'adapting_channels'`. Unlike `retryResearch`
+ * (which restarts the whole pipeline), this resumes the correct stage: a
+ * channel-adaptation failure means an article is already approved, and
+ * restarting research from scratch would orphan it and eventually generate
+ * unrelated new options. This re-triggers adaptation for whatever channels
+ * are currently enabled in Settings — a documented simplification, since
+ * if some channels already succeeded before one failed mid-run, the exact
+ * original selection isn't preserved anywhere to reconstruct perfectly. */
+export async function retryChannelAdaptation(requestId: string): Promise<void> {
+  await requireUserId();
+
+  const [draft] = await db
+    .select({ id: articleDrafts.id })
+    .from(articleDrafts)
+    .where(
+      and(eq(articleDrafts.requestId, requestId), eq(articleDrafts.status, "approved")),
+    )
+    .orderBy(desc(articleDrafts.version))
+    .limit(1);
+  if (!draft) {
+    throw new Error("Could not find the approved article for this request.");
+  }
+
+  const enabledChannelRows = await db
+    .select({ channel: channelConfigs.channel })
+    .from(channelConfigs)
+    .where(eq(channelConfigs.enabled, true));
+  const channels = enabledChannelRows.map((r) => r.channel);
+  if (channels.length === 0) {
+    throw new Error("No channels are enabled — configure one in Settings before retrying.");
+  }
+
+  await db
+    .update(contentRequests)
+    .set({ status: "channel_adapting", updatedAt: new Date() })
+    .where(eq(contentRequests.id, requestId));
+
+  try {
+    await startChannelAdaptation(requestId, draft.id, channels);
+  } catch (error) {
+    const message =
+      error instanceof FastApiError ? error.message : "Unknown error";
+    await db
+      .update(contentRequests)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(contentRequests.id, requestId));
+    throw new Error(`Could not restart channel adaptation: ${message}`);
   }
 
   revalidatePath(`/content-requests/${requestId}`);

@@ -41,8 +41,8 @@ export function AiAssistantPanel({
       try {
         const result = await proposeAiAssistEdit(draftId, text);
         setProposal(result);
-      } catch {
-        setError("Something went wrong generating a suggestion. Please try again.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong generating a suggestion.");
       }
     });
   }

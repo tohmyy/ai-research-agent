@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
 import ReactMarkdown from "react-markdown";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 import { saveDraftRevision } from "@/lib/actions/content-requests";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { InlineError } from "@/components/inline-error";
 import { ArticleEditor } from "./article-editor";
 import { AiAssistantPanel } from "./ai-assistant-panel";
 import { EvaluationPanel } from "./evaluation-panel";
@@ -31,18 +32,19 @@ export function ReviewWorkspace({
   enabledChannels: string[];
 }) {
   const router = useRouter();
-  const [saving, startTransition] = useTransition();
+  const { pending: saving, error, run } = useAsyncAction();
 
   function handleSave(markdown: string) {
     const title = extractTitle(markdown, option.title || "Untitled");
-    startTransition(async () => {
+    run(async () => {
       await saveDraftRevision(requestId, option.id, title, markdown);
       router.refresh();
-    });
+    }, "Draft saved.");
   }
 
   return (
     <div className="space-y-4">
+      {error && <InlineError message={error} />}
       {readOnly ? (
         <div
           className={

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -9,6 +9,8 @@ import {
   rejectArticle,
   requestArticleRevision,
 } from "@/lib/actions/content-requests";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,7 +44,7 @@ export function ReviewActions({
   enabledChannels: string[];
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useAsyncAction();
   const [revisionNote, setRevisionNote] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [selectedChannels, setSelectedChannels] = useState<string[]>(enabledChannels);
@@ -54,38 +56,35 @@ export function ReviewActions({
   }
 
   function handleApprove() {
-    startTransition(async () => {
+    run(async () => {
       await approveArticle(requestId, draftId, selectedChannels);
-      toast.success(
-        selectedChannels.length > 0
-          ? "Content approved — adapting for the selected channels."
-          : "Content approved.",
-      );
       router.refresh();
-    });
+    }, selectedChannels.length > 0
+      ? "Content approved — adapting for the selected channels."
+      : "Content approved.");
   }
 
   function handleRequestRevision() {
     toast("Requesting revision…", { description: "This can take up to a minute." });
-    startTransition(async () => {
+    run(async () => {
       await requestArticleRevision(requestId, draftId, revisionNote);
       setRevisionNote("");
-      toast.success("Revision ready.");
       router.refresh();
-    });
+    }, "Revision ready.");
   }
 
   function handleReject() {
-    startTransition(async () => {
+    run(async () => {
       await rejectArticle(requestId, draftId, rejectReason);
       setRejectReason("");
-      toast("Content rejected.");
       router.refresh();
-    });
+    }, "Content rejected.");
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="space-y-3">
+      {error && <InlineError message={error} />}
+      <div className="flex items-center gap-3">
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button disabled={pending}>Approve</Button>
@@ -196,6 +195,7 @@ export function ReviewActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }

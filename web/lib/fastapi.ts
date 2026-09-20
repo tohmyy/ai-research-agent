@@ -2,6 +2,24 @@ const FASTAPI_BASE_URL = process.env.FASTAPI_BASE_URL ?? "http://localhost:8000"
 
 export class FastApiError extends Error {}
 
+/** FastAPI's `HTTPException(detail=...)` responses are `{"detail": "..."}` —
+ * extract that for a clean, human-readable message instead of dumping the
+ * raw response body (which for an unhandled 500 could be an HTML page or a
+ * generic "Internal Server Error", not something worth showing a user). */
+async function throwFastApiError(res: Response, path: string): Promise<never> {
+  const body = await res.text().catch(() => "");
+  let message = body;
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed.detail === "string") {
+      message = parsed.detail;
+    }
+  } catch {
+    // Not JSON — fall back to the raw body text.
+  }
+  throw new FastApiError(message || `FastAPI ${path} failed (${res.status})`);
+}
+
 type StartPipelineResponse = {
   research_job_id: string;
   status: string;
@@ -25,10 +43,7 @@ export async function parseIntakePrompt(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(
-      `FastAPI /intake/parse failed (${res.status}): ${body}`,
-    );
+    await throwFastApiError(res, "/intake/parse");
   }
 
   return res.json() as Promise<ParseIntakeResponse>;
@@ -44,10 +59,7 @@ export async function startPipeline(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(
-      `FastAPI /pipeline/start failed (${res.status}): ${body}`,
-    );
+    await throwFastApiError(res, "/pipeline/start");
   }
 
   return res.json() as Promise<StartPipelineResponse>;
@@ -71,10 +83,7 @@ export async function requestRevision(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(
-      `FastAPI /drafts/${draftId}/request-revision failed (${res.status}): ${body}`,
-    );
+    await throwFastApiError(res, `/drafts/${draftId}/request-revision`);
   }
 
   return res.json() as Promise<DraftResponse>;
@@ -96,10 +105,7 @@ export async function aiAssistEdit(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(
-      `FastAPI /drafts/${draftId}/ai-assist failed (${res.status}): ${body}`,
-    );
+    await throwFastApiError(res, `/drafts/${draftId}/ai-assist`);
   }
 
   return res.json() as Promise<AiAssistResponse>;
@@ -122,10 +128,7 @@ export async function startChannelAdaptation(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(
-      `FastAPI /pipeline/adapt-channels failed (${res.status}): ${body}`,
-    );
+    await throwFastApiError(res, "/pipeline/adapt-channels");
   }
 
   return res.json() as Promise<AdaptChannelsResponse>;
@@ -152,10 +155,7 @@ export async function requestChannelRevision(
   );
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(
-      `FastAPI /channel-content/${channelContentId}/request-revision failed (${res.status}): ${body}`,
-    );
+    await throwFastApiError(res, `/channel-content/${channelContentId}/request-revision`);
   }
 
   return res.json() as Promise<ChannelContentResponse>;
@@ -182,8 +182,7 @@ async function publishingRequest(
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new FastApiError(`FastAPI ${path} failed (${res.status}): ${body}`);
+    await throwFastApiError(res, path);
   }
 
   return res.json() as Promise<QueueItemResponse>;

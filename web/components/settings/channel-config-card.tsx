@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 
 import { saveChannelConfig } from "@/lib/actions/channel-configs";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,13 +50,12 @@ export function ChannelConfigCard({
     }
     return seeded;
   });
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useAsyncAction();
 
   function handleSave() {
-    startTransition(async () => {
+    run(async () => {
       await saveChannelConfig(channel, enabled, values);
-      toast.success(`${title} settings saved.`);
-    });
+    }, `${title} settings saved.`);
   }
 
   return (
@@ -73,6 +73,7 @@ export function ChannelConfigCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {error && <InlineError message={error} />}
         {fields.map((field) => (
           <div key={field.key} className="space-y-1.5">
             <Label htmlFor={`${channel}-${field.key}`}>{field.label}</Label>

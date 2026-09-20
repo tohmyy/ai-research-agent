@@ -294,7 +294,7 @@ export default async function ContentRequestDetailPage({
       />
 
       {request.status === "failed" ? (
-        <ResearchFailure requestId={request.id} error={job?.error ?? null} />
+        <ResearchFailure requestId={request.id} error={job?.error ?? null} stage={job?.stage ?? null} />
       ) : (
         <>
           {steps.length > 0 && (

@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 import { saveChannelContentEdit } from "@/lib/actions/content-requests";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -33,7 +35,7 @@ function ChannelPane({
   item: ChannelContentItem;
 }) {
   const router = useRouter();
-  const [saving, startTransition] = useTransition();
+  const { pending: saving, error, run } = useAsyncAction();
   const [subject, setSubject] = useState(item.subject ?? "");
   const [body, setBody] = useState(item.body ?? "");
 
@@ -41,7 +43,7 @@ function ChannelPane({
   const dirty = subject !== (item.subject ?? "") || body !== (item.body ?? "");
 
   function handleSave() {
-    startTransition(async () => {
+    run(async () => {
       await saveChannelContentEdit(
         requestId,
         item.id,
@@ -49,11 +51,12 @@ function ChannelPane({
         body,
       );
       router.refresh();
-    });
+    }, "Changes saved.");
   }
 
   return (
     <div className="space-y-4">
+      {error && <InlineError message={error} />}
       {readOnly ? (
         item.status === "approved" ? (
           <div className="rounded-md border border-success-border bg-success-subtle p-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -9,6 +9,8 @@ import {
   rejectChannelContent,
   requestChannelContentRevision,
 } from "@/lib/actions/content-requests";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { InlineError } from "@/components/inline-error";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -31,39 +33,38 @@ export function ChannelReviewActions({
   channelContentId: string;
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const { pending, error, run } = useAsyncAction();
   const [revisionNote, setRevisionNote] = useState("");
   const [rejectReason, setRejectReason] = useState("");
 
   function handleApprove() {
-    startTransition(async () => {
+    run(async () => {
       await approveChannelContent(requestId, channelContentId);
-      toast.success("Content approved.");
       router.refresh();
-    });
+    }, "Content approved.");
   }
 
   function handleRequestRevision() {
     toast("Requesting revision…", { description: "This can take up to a minute." });
-    startTransition(async () => {
+    run(async () => {
       await requestChannelContentRevision(requestId, channelContentId, revisionNote);
       setRevisionNote("");
-      toast.success("Revision ready.");
       router.refresh();
-    });
+    }, "Revision ready.");
   }
 
   function handleReject() {
-    startTransition(async () => {
+    run(async () => {
       await rejectChannelContent(requestId, channelContentId, rejectReason);
       setRejectReason("");
-      toast("Content rejected.");
       router.refresh();
-    });
+    }, "Content rejected.");
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="space-y-3">
+      {error && <InlineError message={error} />}
+      <div className="flex items-center gap-3">
       <Button onClick={handleApprove} disabled={pending}>
         Approve
       </Button>
@@ -128,6 +129,7 @@ export function ChannelReviewActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 }
