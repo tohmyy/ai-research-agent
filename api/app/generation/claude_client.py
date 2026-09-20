@@ -45,6 +45,7 @@ def generate_structured(
     input_schema: dict[str, Any],
     context_block: str | None = None,
     model: str = MODEL,
+    strict: bool = True,
 ) -> dict[str, Any]:
     """Force Claude to call `tool_name` and return its parsed input.
 
@@ -56,6 +57,17 @@ def generate_structured(
     option under the revision cap), this alone is enough to get real cache
     hits on the 2nd/3rd+ call without every caller building content-block
     arrays by hand.
+
+    `strict` defaults to True (constrained decoding against `input_schema`)
+    but can be disabled per call. Confirmed by direct testing: a flat,
+    all-required, multi-string-property schema (e.g. intake's 5-field
+    categorizer) reliably made both Sonnet 5 and Haiku 4.5 emit corrupted
+    output — literal leaked tool-call-like syntax inside string field
+    values — under `strict=True`, reproducing across multiple prompt
+    rewordings and user inputs. The identical call with `strict=False` was
+    clean across every repeat. No other schema in this codebase (all
+    nested/array-shaped) has triggered this; if a future flat multi-string
+    schema misbehaves the same way, try `strict=False` first.
     """
     if context_block:
         user_content: str | list[dict[str, Any]] = [
@@ -76,7 +88,7 @@ def generate_structured(
                     "name": tool_name,
                     "description": tool_description,
                     "input_schema": input_schema,
-                    "strict": True,
+                    "strict": strict,
                 }
             ],
             tool_choice={"type": "tool", "name": tool_name},

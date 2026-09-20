@@ -2370,9 +2370,14 @@ These belong in the analytics backlog.
 
 ## 19.1 Presentation
 
-Use a full-page content request experience.
+Use a full-page content request experience on `/content-requests/new`.
 
-Do not use a multi-step wizard for the MVP.
+Intake is a short two-stage flow — not a long multi-step wizard:
+
+1. **Compose** — one large free-text prompt
+2. **Understanding** — editable structured summary of the existing fields
+
+Do not show the labeled field grid on the initial screen. The user should not have to decide what to type where before they start.
 
 ---
 
@@ -2381,64 +2386,78 @@ Do not use a multi-step wizard for the MVP.
 ```text
 New Content Request
 
-Tell us what you want to create.
+Dump your idea, audience, links, and notes in one place.
 ```
 
 ---
 
-## 19.3 Fields
+## 19.3 Stage 1 — Compose
+
+Show a single large multi-line control with search-bar visual weight (hero input, not a tiny one-line search field).
+
+Placeholder should invite dumping everything in natural language — idea, audience, URLs, tone, restrictions, supporting notes.
+
+Primary action on this stage:
+
+```text
+Continue
+```
+
+While parsing, show a clear loading state. Do not offer Start Research until the Understanding stage.
+
+---
+
+## 19.4 Stage 2 — Understanding
+
+After AI categorization, always show an editable summary under a heading such as:
+
+```text
+Here's what we understood
+```
+
+Pre-fill and allow editing of the same fields the pipeline already uses:
 
 ### Raw Idea
 
 Required.
 
-Large text input.
-
-Placeholder should encourage natural language.
-
----
-
 ### Target Audience
 
 Required.
-
-Describe who the content is intended for.
-
----
 
 ### Supporting Material
 
 Optional.
 
-Allow supporting information or notes.
-
----
-
 ### Source URL
 
 Optional.
 
-Accept a URL for URL-based research.
-
-Validate the URL format.
-
----
+Validate URL format when provided.
 
 ### Additional Instructions
 
-Optional.
+Optional — tone, angle, restrictions, additional context, content requirements.
 
-Allow the user to provide:
+Missing required fields must be visually called out. The user must complete them before Start Research.
 
-* Tone
-* Desired angle
-* Restrictions
-* Additional context
-* Content requirements
+Provide a **Back** control that returns to Compose and preserves the original free-text prompt.
 
 ---
 
 # 20. Request Actions
+
+## Compose stage
+
+Primary:
+
+```text
+Continue
+```
+
+Parses the free-text prompt into structured fields.
+
+## Understanding stage
 
 Primary:
 
@@ -2452,19 +2471,23 @@ Secondary:
 Save Draft
 ```
 
+Disable Start Research and Save Draft while required fields are empty or the source URL is invalid.
+
 The primary action should be visually stronger.
 
 ---
 
 # 21. Request Validation
 
-Validate:
+Validate on the Understanding stage (and on submit):
 
 * Raw idea is not empty
 * Target audience is not empty
 * Source URL is valid when provided
 
 Validation should appear near the relevant field.
+
+The AI parser must leave unknown fields empty rather than inventing an audience or URL.
 
 Avoid displaying generic errors such as:
 
@@ -4131,16 +4154,22 @@ Every MVP screen should satisfy:
 
 # 97. Acceptance Criteria — Content Request
 
+* [ ] Initial screen is a single free-text compose prompt (no field grid)
+* [ ] Continue parses the prompt into structured fields
+* [ ] Parse loading state is visible
+* [ ] Understanding summary is always shown after a successful parse
+* [ ] All five fields are editable on the summary
 * [ ] Raw Idea is required
 * [ ] Target Audience is required
+* [ ] Missing required fields block Start Research / Save Draft and are highlighted
 * [ ] Supporting Material is optional
 * [ ] Source URL is optional
 * [ ] Additional Instructions are optional
-* [ ] Validation is clear
-* [ ] Save Draft works
-* [ ] Start Research works
-* [ ] Loading state exists
-* [ ] Submission errors are understandable
+* [ ] Extracted or edited Source URL is validated
+* [ ] Back returns to Compose and preserves the original prompt
+* [ ] Save Draft works from the Understanding stage
+* [ ] Start Research works from the Understanding stage
+* [ ] Submission and parse errors are understandable
 
 ---
 

@@ -18,6 +18,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import FastAPI
 
 from app.channels.router import router as channels_router
+from app.intake.router import router as intake_router
 from app.pipeline.router import router as pipeline_router
 from app.publishing.router import router as publishing_router
 from app.publishing.scheduler_job import poll_due_scheduled_items
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(review_router)
     app.include_router(channels_router)
     app.include_router(publishing_router)
+    app.include_router(intake_router)
 
     return app
 
