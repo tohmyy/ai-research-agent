@@ -55,13 +55,15 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        "flex shrink-0 flex-col border-r border-border bg-card transition-[width] duration-150",
+        // Sticky + viewport height so Notifications/Settings stay pinned at
+        // the bottom of the screen instead of below a page-tall sidebar.
+        "sticky top-0 flex h-svh shrink-0 flex-col border-r border-border bg-card transition-[width] duration-150",
         collapsed ? "w-16" : "w-64",
       )}
     >
       <div
         className={cn(
-          "flex h-16 items-center gap-2 border-b border-border px-4",
+          "flex h-16 shrink-0 items-center gap-2 border-b border-border px-4",
           collapsed && "justify-center px-0",
         )}
       >
@@ -71,13 +73,13 @@ export function AppSidebar() {
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">
         {PRIMARY_NAV_ITEMS.map((item) => (
           <NavLink key={item.href} item={item} collapsed={collapsed} />
         ))}
       </nav>
 
-      <div className="flex flex-col gap-1 border-t border-border p-3">
+      <div className="flex shrink-0 flex-col gap-1 border-t border-border p-3">
         {SECONDARY_NAV_ITEMS.map((item) => (
           <NavLink key={item.href} item={item} collapsed={collapsed} />
         ))}
