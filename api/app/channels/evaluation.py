@@ -5,7 +5,7 @@ applies once content has been adapted per-channel.
 from __future__ import annotations
 
 from app.evaluation.rubric import ARTICLE_CRITERIA
-from app.generation.claude_client import generate_structured
+from app.generation.claude_client import EVAL_MODEL, generate_structured
 from app.generation.context import SourceContext
 
 CHANNEL_CRITERIA = ARTICLE_CRITERIA + ["Channel Fit"]
@@ -95,10 +95,7 @@ def evaluate_channel_content(
     context: SourceContext,
 ) -> dict:
     content_block = f"Subject: {subject}\n\n{body}" if subject else body
-    user_prompt = f"""Reviewed source material:
-{context.text}
-
-Adapted {channel} content to evaluate:
+    user_prompt = f"""Adapted {channel} content to evaluate:
 
 {content_block}
 """
@@ -106,7 +103,9 @@ Adapted {channel} content to evaluate:
     return generate_structured(
         system=_system_prompt(channel),
         user=user_prompt,
+        context_block=f"Reviewed source material:\n{context.text}",
         tool_name="evaluate_channel_content",
         tool_description="Evaluate the adapted channel content against the rubric.",
         input_schema=SCHEMA,
+        model=EVAL_MODEL,
     )

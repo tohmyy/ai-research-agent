@@ -20,10 +20,7 @@ def revise_draft(
     evaluation: dict,
     context: SourceContext,
 ) -> dict:
-    user_prompt = f"""Reviewed source material:
-{context.text}
-
-Current draft:
+    user_prompt = f"""Current draft:
 
 # {title}
 
@@ -38,6 +35,7 @@ Editorial feedback to address:
     return generate_structured(
         system=_SYSTEM_PROMPT,
         user=user_prompt,
+        context_block=f"Reviewed source material:\n{context.text}",
         tool_name="write_article",
         tool_description="Write the revised article addressing the editorial feedback.",
         input_schema=_SCHEMA,

@@ -17,14 +17,12 @@ def adapt_for_channel(
 # {article_title}
 
 {article_body}
-
-Reviewed source material (for grounding claims only — do not restate it verbatim):
-{context.text}
 """
 
     return generate_structured(
         system=CHANNEL_PROMPTS[channel],
         user=user_prompt,
+        context_block=f"Reviewed source material (for grounding claims only — do not restate it verbatim):\n{context.text}",
         tool_name="write_channel_content",
         tool_description=f"Write the adapted {channel} content.",
         input_schema=CHANNEL_SCHEMAS[channel],

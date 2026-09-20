@@ -10,6 +10,7 @@ runs its job coroutines directly on FastAPI's existing asyncio loop, unlike
 `BackgroundScheduler`, which would run them on a separate OS thread and
 force the async DB engine to be bridged across threads for no benefit here.
 """
+import logging
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -21,6 +22,12 @@ from app.pipeline.router import router as pipeline_router
 from app.publishing.router import router as publishing_router
 from app.publishing.scheduler_job import poll_due_scheduled_items
 from app.review.router import router as review_router
+
+# Without this, this app's own `logging.getLogger(__name__)` loggers (Claude
+# usage/cost logging, the publishing scheduler's error logging) have no
+# handler and are silently dropped — uvicorn only configures its own
+# "uvicorn.*" loggers by default, not the application's.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 
 SCHEDULER_POLL_SECONDS = 30
 

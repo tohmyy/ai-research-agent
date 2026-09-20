@@ -23,10 +23,7 @@ def generate_ai_assist_edit(
     instruction: str,
     context: SourceContext,
 ) -> dict:
-    user_prompt = f"""Reviewed source material:
-{context.text}
-
-Current draft:
+    user_prompt = f"""Current draft:
 
 # {title}
 
@@ -38,6 +35,7 @@ Instruction: {instruction}
     return generate_structured(
         system=_SYSTEM_PROMPT,
         user=user_prompt,
+        context_block=f"Reviewed source material:\n{context.text}",
         tool_name="write_article",
         tool_description="Write the revised article applying the given instruction.",
         input_schema=_SCHEMA,

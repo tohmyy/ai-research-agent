@@ -21,10 +21,7 @@ every issue raised while preserving what already works. Return the complete revi
 content, not a diff or partial rewrite.
 """
 
-    user_prompt = f"""Reviewed source material:
-{context.text}
-
-Current {channel} content:
+    user_prompt = f"""Current {channel} content:
 
 {current_block}
 
@@ -37,6 +34,7 @@ Editorial feedback to address:
     return generate_structured(
         system=system,
         user=user_prompt,
+        context_block=f"Reviewed source material:\n{context.text}",
         tool_name="write_channel_content",
         tool_description=f"Write the revised {channel} content addressing the editorial feedback.",
         input_schema=CHANNEL_SCHEMAS[channel],

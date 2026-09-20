@@ -65,14 +65,12 @@ Target length: approximately {angle["estimated_word_count"]} words
 
 Outline:
 {outline_text}
-
-Reviewed source material:
-{context.text}
 """
 
     return generate_structured(
         system=_SYSTEM_PROMPT,
         user=user_prompt,
+        context_block=f"Reviewed source material:\n{context.text}",
         tool_name="write_article",
         tool_description="Write the full SEO article for this angle.",
         input_schema=_SCHEMA,

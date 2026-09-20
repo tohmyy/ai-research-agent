@@ -85,14 +85,12 @@ def generate_plan(
     user_prompt = f"""Content idea: {raw_idea}
 Target audience: {target_audience}
 {f"Additional instructions: {additional_instructions}" if additional_instructions else ""}
-
-Reviewed source material:
-{context.text}
 """
 
     plan = generate_structured(
         system=_SYSTEM_PROMPT,
         user=user_prompt,
+        context_block=f"Reviewed source material:\n{context.text}",
         tool_name="propose_content_angles",
         tool_description=f"Propose exactly {NUM_ARTICLE_OPTIONS} distinct article angles with outlines and keywords.",
         input_schema=_SCHEMA,
