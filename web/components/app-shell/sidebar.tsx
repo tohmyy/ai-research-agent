@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { PanelLeft, PanelLeftClose, Sparkles } from "lucide-react";
+import { PanelLeft, PanelLeftClose } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -11,6 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Logo } from "./logo";
 import {
   PRIMARY_NAV_ITEMS,
   SECONDARY_NAV_ITEMS,
@@ -67,10 +68,7 @@ export function AppSidebar() {
           collapsed && "justify-center px-0",
         )}
       >
-        <Sparkles className="size-5 shrink-0 text-primary" />
-        {!collapsed && (
-          <span className="text-subsection">AI Content Agent</span>
-        )}
+        <Logo collapsed={collapsed} />
       </div>
 
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3">

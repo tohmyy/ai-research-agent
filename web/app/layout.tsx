@@ -15,8 +15,8 @@ const fontSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "AI Content Agent",
-  description: "AI content research and publishing agent",
+  title: "Resetchy",
+  description: "Resetchy — AI content research and publishing agent",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
