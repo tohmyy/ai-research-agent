@@ -7,6 +7,33 @@ type StartPipelineResponse = {
   status: string;
 };
 
+export type ParseIntakeResponse = {
+  raw_idea: string;
+  target_audience: string;
+  supporting_material: string;
+  source_url: string;
+  additional_instructions: string;
+};
+
+export async function parseIntakePrompt(
+  prompt: string,
+): Promise<ParseIntakeResponse> {
+  const res = await fetch(`${FASTAPI_BASE_URL}/intake/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new FastApiError(
+      `FastAPI /intake/parse failed (${res.status}): ${body}`,
+    );
+  }
+
+  return res.json() as Promise<ParseIntakeResponse>;
+}
+
 export async function startPipeline(
   requestId: string,
 ): Promise<StartPipelineResponse> {

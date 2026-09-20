@@ -16,17 +16,40 @@ import {
 } from "@/lib/db/schema";
 import {
   aiAssistEdit,
+  parseIntakePrompt,
   requestRevision,
   requestChannelRevision,
   startChannelAdaptation,
   startPipeline,
   FastApiError,
+  type ParseIntakeResponse,
 } from "@/lib/fastapi";
 
 export type ContentRequestFormState = {
   error?: string;
   fieldErrors?: Record<string, string>;
 };
+
+export type ParseIntakeResult =
+  | { ok: true; fields: ParseIntakeResponse }
+  | { ok: false; error: string };
+
+export async function parseIntake(prompt: string): Promise<ParseIntakeResult> {
+  await requireUserId();
+  const trimmed = prompt.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Describe what you want to create." };
+  }
+
+  try {
+    const fields = await parseIntakePrompt(trimmed);
+    return { ok: true, fields };
+  } catch (error) {
+    const message =
+      error instanceof FastApiError ? error.message : "Unknown error";
+    return { ok: false, error: `Could not categorize your request: ${message}` };
+  }
+}
 
 async function requireUserId() {
   const session = await auth.api.getSession({ headers: await headers() });
