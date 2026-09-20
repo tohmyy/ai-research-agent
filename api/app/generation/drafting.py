@@ -37,6 +37,8 @@ for it — do not pad sections the sources don't support.
 Content Enrichment:
 - Include 2 to 3 relevant links (use the source URLs provided below where appropriate).
 - Keep the writing readable for a broad audience.
+- Note in the body, in brackets, if one contextually relevant image would help \
+(e.g. "[Image: ...]") — do not fabricate one.
 - Keep every claim grounded in the reviewed source material below — never invent \
 facts, statistics, or quotes the sources don't support.
 

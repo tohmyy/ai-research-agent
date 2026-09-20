@@ -69,7 +69,9 @@ audiences-within-the-audience, or takeaways, not minor rewordings of the same id
 
 For each angle, follow SEO best practices:
 - Identify one primary keyword drawn from the content idea.
-- Identify a handful of relevant secondary keywords from the source material.
+- Treating the source material as your competing/reference articles, identify a \
+handful of relevant secondary keywords, including both short-tail (broad) and \
+long-tail (specific, multi-word) keywords where the material supports them.
 - Outline using a clear heading structure (this becomes H2 sections in the article).
 - Keep every angle grounded in the provided source material — do not invent claims \
 the sources don't support.
