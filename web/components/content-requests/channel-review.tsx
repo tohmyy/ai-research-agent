@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EvaluationPanel } from "./evaluation-panel";
 import { VersionHistory } from "./version-history";
 import { ChannelReviewActions } from "./channel-review-actions";
+import { PublishActions } from "@/components/publishing/publish-actions";
 import { LinkedinPreview } from "./linkedin-preview";
 import { XPreview } from "./x-preview";
 import { NewsletterPreview } from "./newsletter-preview";
@@ -54,23 +55,23 @@ function ChannelPane({
   return (
     <div className="space-y-4">
       {readOnly ? (
-        <div
-          className={
-            item.status === "approved"
-              ? "flex items-center gap-2 rounded-md border border-success-border bg-success-subtle px-4 py-3 text-success"
-              : "flex items-center gap-2 rounded-md border border-error-border bg-error-subtle px-4 py-3 text-destructive"
-          }
-        >
-          {item.status === "approved" ? (
-            <>
+        item.status === "approved" ? (
+          <div className="rounded-md border border-success-border bg-success-subtle p-3">
+            <div className="mb-2 flex items-center gap-2 text-success">
               <CheckCircle2 className="size-4" /> Approved
-            </>
-          ) : (
-            <>
-              <XCircle className="size-4" /> Rejected
-            </>
-          )}
-        </div>
+            </div>
+            <PublishActions
+              channelContentId={item.id}
+              channel={item.channel}
+              contentPreview={item.subject || item.body || ""}
+              queue={item.queue}
+            />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-md border border-error-border bg-error-subtle px-4 py-3 text-destructive">
+            <XCircle className="size-4" /> Rejected
+          </div>
+        )
       ) : (
         <div className="flex justify-end">
           <ChannelReviewActions requestId={requestId} channelContentId={item.id} />

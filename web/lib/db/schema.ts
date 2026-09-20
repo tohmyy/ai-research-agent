@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   integer,
@@ -6,6 +7,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
@@ -214,18 +216,42 @@ export const approvals = pgTable("approvals", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const publishingQueue = pgTable("publishing_queue", {
+export const publishingQueue = pgTable(
+  "publishing_queue",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channelContentId: uuid("channel_content_id")
+      .notNull()
+      .references(() => channelContent.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(),
+    scheduledAt: timestamp("scheduled_at"),
+    // queued | scheduled | publishing | published | failed | cancelled
+    status: text("status").notNull().default("queued"),
+    publishedAt: timestamp("published_at"),
+    externalPostId: text("external_post_id"),
+    error: text("error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // At most one live (not yet finished) queue row per channel_content —
+    // stops a double "Publish Now" click from creating two competing rows.
+    uniqueIndex("publishing_queue_active_content_idx")
+      .on(table.channelContentId)
+      .where(sql`${table.status} IN ('queued', 'scheduled', 'publishing')`),
+  ],
+);
+
+export const channelConfigs = pgTable("channel_configs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  channelContentId: uuid("channel_content_id")
-    .notNull()
-    .references(() => channelContent.id, { onDelete: "cascade" }),
-  channel: text("channel").notNull(),
-  scheduledAt: timestamp("scheduled_at"),
-  status: text("status").notNull().default("queued"), // queued | scheduled | published | failed
-  publishedAt: timestamp("published_at"),
-  externalPostId: text("external_post_id"),
-  error: text("error"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  channel: text("channel").notNull().unique(), // linkedin | x | newsletter
+  enabled: boolean("enabled").notNull().default(false),
+  // Channel-specific credential fields — shape varies per channel (e.g.
+  // linkedin: accessToken/authorUrn; x: apiKey/apiSecret/accessToken/
+  // accessTokenSecret; newsletter: sendgridApiKey/fromEmail/recipients).
+  // Stored as plain text (not encrypted) — accepted simplification for a
+  // solo-dev demo with a single trusted user, see BUILD-PLAN.md Phase 7.
+  config: jsonb("config").notNull().default({}),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

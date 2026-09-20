@@ -5,11 +5,13 @@ import { db } from "@/lib/db";
 import {
   approvals,
   articleDrafts,
+  channelConfigs,
   channelContent,
   contentPlans,
   contentRequests,
   draftSources,
   evaluations,
+  publishingQueue,
   researchJobs,
   sources,
 } from "@/lib/db/schema";
@@ -28,6 +30,7 @@ import type {
   DraftVersion,
   Evaluation,
   EvaluationCriterionScore,
+  PublishQueueInfo,
 } from "@/components/content-requests/types";
 
 const IN_PROGRESS_STATUSES = new Set([
@@ -224,6 +227,29 @@ export default async function ContentRequestDetailPage({
       byChannel.set(item.channel, [...(byChannel.get(item.channel) ?? []), item]);
     }
 
+    const leafIds = [...byChannel.values()].map((group) => group[group.length - 1]!.id);
+    const queueRows = leafIds.length
+      ? await db
+          .select()
+          .from(publishingQueue)
+          .where(inArray(publishingQueue.channelContentId, leafIds))
+          .orderBy(asc(publishingQueue.createdAt))
+      : [];
+    // Most recent queue row per leaf is "current" — a channel_content can
+    // accumulate more than one queue row over time (e.g. a cancelled
+    // attempt followed by a fresh Publish Now).
+    const queueByContentId = new Map<string, PublishQueueInfo>();
+    for (const row of queueRows) {
+      queueByContentId.set(row.channelContentId, {
+        id: row.id,
+        status: row.status,
+        scheduledAt: row.scheduledAt,
+        publishedAt: row.publishedAt,
+        externalPostId: row.externalPostId,
+        error: row.error,
+      });
+    }
+
     channelItems = [...byChannel.values()].map((group) => {
       const leaf = group[group.length - 1]!;
       const versions: DraftVersion[] = group.map((c) => ({
@@ -242,9 +268,16 @@ export default async function ContentRequestDetailPage({
         status: leaf.status,
         evaluation: evalByContentId.get(leaf.id) ?? null,
         versions,
+        queue: queueByContentId.get(leaf.id) ?? null,
       };
     });
   }
+
+  const enabledChannelRows = await db
+    .select({ channel: channelConfigs.channel })
+    .from(channelConfigs)
+    .where(eq(channelConfigs.enabled, true));
+  const enabledChannels = enabledChannelRows.map((r) => r.channel);
 
   const steps = (job?.steps as TimelineStep[] | null) ?? [];
   const inProgress = IN_PROGRESS_STATUSES.has(request.status);
@@ -295,6 +328,7 @@ export default async function ContentRequestDetailPage({
                 requestId={request.id}
                 option={reviewedOption}
                 readOnly={request.status !== "selected"}
+                enabledChannels={enabledChannels}
               />
             </section>
           )}

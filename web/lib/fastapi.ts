@@ -86,11 +86,12 @@ type AdaptChannelsResponse = {
 export async function startChannelAdaptation(
   requestId: string,
   draftId: string,
+  channels: string[],
 ): Promise<AdaptChannelsResponse> {
   const res = await fetch(`${FASTAPI_BASE_URL}/pipeline/adapt-channels`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ request_id: requestId, draft_id: draftId }),
+    body: JSON.stringify({ request_id: requestId, draft_id: draftId, channels }),
   });
 
   if (!res.ok) {
@@ -131,4 +132,70 @@ export async function requestChannelRevision(
   }
 
   return res.json() as Promise<ChannelContentResponse>;
+}
+
+export type QueueItemResponse = {
+  id: string;
+  channel_content_id: string;
+  channel: string;
+  status: string;
+  scheduled_at: string | null;
+  published_at: string | null;
+  external_post_id: string | null;
+  error: string | null;
+};
+
+async function publishingRequest(
+  path: string,
+  init: RequestInit,
+): Promise<QueueItemResponse> {
+  const res = await fetch(`${FASTAPI_BASE_URL}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new FastApiError(`FastAPI ${path} failed (${res.status}): ${body}`);
+  }
+
+  return res.json() as Promise<QueueItemResponse>;
+}
+
+export function publishNow(channelContentId: string): Promise<QueueItemResponse> {
+  return publishingRequest(`/publishing/${channelContentId}/publish-now`, {
+    method: "POST",
+  });
+}
+
+export function schedulePublish(
+  channelContentId: string,
+  scheduledAt: string,
+): Promise<QueueItemResponse> {
+  return publishingRequest(`/publishing/${channelContentId}/schedule`, {
+    method: "POST",
+    body: JSON.stringify({ scheduled_at: scheduledAt }),
+  });
+}
+
+export function retryPublish(queueId: string): Promise<QueueItemResponse> {
+  return publishingRequest(`/publishing/queue/${queueId}/retry`, {
+    method: "POST",
+  });
+}
+
+export function editSchedule(
+  queueId: string,
+  scheduledAt: string,
+): Promise<QueueItemResponse> {
+  return publishingRequest(`/publishing/queue/${queueId}/schedule`, {
+    method: "PATCH",
+    body: JSON.stringify({ scheduled_at: scheduledAt }),
+  });
+}
+
+export function cancelSchedule(queueId: string): Promise<QueueItemResponse> {
+  return publishingRequest(`/publishing/queue/${queueId}/cancel`, {
+    method: "POST",
+  });
 }

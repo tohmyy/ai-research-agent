@@ -34,6 +34,7 @@ const STATUS_META: Record<string, { label: string; icon: LucideIcon; tone: Tone 
   publishing: { label: "Publishing", icon: LoaderCircle, tone: "info" },
   published: { label: "Published", icon: CheckCircle2, tone: "success" },
   failed: { label: "Failed", icon: CircleAlert, tone: "destructive" },
+  cancelled: { label: "Cancelled", icon: XCircle, tone: "muted" },
   rejected: { label: "Rejected", icon: XCircle, tone: "destructive" },
 };
 

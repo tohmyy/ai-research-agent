@@ -226,6 +226,7 @@ export async function selectArticle(
 export async function approveArticle(
   requestId: string,
   draftId: string,
+  channels: string[],
   notes?: string,
 ): Promise<void> {
   const userId = await requireUserId();
@@ -243,13 +244,29 @@ export async function approveArticle(
     .set({ status: "approved", updatedAt: new Date() })
     .where(eq(articleDrafts.id, draftId));
 
+  if (channels.length === 0) {
+    // No channels selected (or none configured) — approve the article and
+    // stop there, same as the pre-channel-adaptation behavior. Nothing to
+    // adapt for, so content_requests stays "approved" rather than moving
+    // into a channel pipeline that has nothing to do.
+    await db
+      .update(contentRequests)
+      .set({ status: "approved", updatedAt: new Date() })
+      .where(eq(contentRequests.id, requestId));
+
+    revalidatePath(`/content-requests/${requestId}`);
+    revalidatePath("/review");
+    revalidatePath("/dashboard");
+    return;
+  }
+
   await db
     .update(contentRequests)
     .set({ status: "channel_adapting", updatedAt: new Date() })
     .where(eq(contentRequests.id, requestId));
 
   try {
-    await startChannelAdaptation(requestId, draftId);
+    await startChannelAdaptation(requestId, draftId, channels);
   } catch (error) {
     const message =
       error instanceof FastApiError ? error.message : "Unknown error";

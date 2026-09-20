@@ -23,10 +23,12 @@ export function ReviewWorkspace({
   requestId,
   option,
   readOnly,
+  enabledChannels,
 }: {
   requestId: string;
   option: ArticleOption;
   readOnly: boolean;
+  enabledChannels: string[];
 }) {
   const router = useRouter();
   const [saving, startTransition] = useTransition();
@@ -61,7 +63,11 @@ export function ReviewWorkspace({
         </div>
       ) : (
         <div className="flex justify-end">
-          <ReviewActions requestId={requestId} draftId={option.id} />
+          <ReviewActions
+            requestId={requestId}
+            draftId={option.id}
+            enabledChannels={enabledChannels}
+          />
         </div>
       )}
 

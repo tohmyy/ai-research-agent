@@ -32,6 +32,15 @@ export type ArticleOption = {
   versions: DraftVersion[];
 };
 
+export type PublishQueueInfo = {
+  id: string;
+  status: string;
+  scheduledAt: Date | null;
+  publishedAt: Date | null;
+  externalPostId: string | null;
+  error: string | null;
+};
+
 export type ChannelContentItem = {
   id: string;
   channel: "linkedin" | "x" | "newsletter";
@@ -40,4 +49,5 @@ export type ChannelContentItem = {
   status: string;
   evaluation: Evaluation | null;
   versions: DraftVersion[];
+  queue: PublishQueueInfo | null;
 };

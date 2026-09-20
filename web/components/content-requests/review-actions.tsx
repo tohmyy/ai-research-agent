@@ -11,6 +11,8 @@ import {
 } from "@/lib/actions/content-requests";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,22 +25,42 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+const CHANNEL_LABELS: Record<string, string> = {
+  linkedin: "LinkedIn",
+  x: "X",
+  newsletter: "Newsletter",
+};
+const ALL_CHANNELS = ["linkedin", "x", "newsletter"];
+
 export function ReviewActions({
   requestId,
   draftId,
+  enabledChannels,
 }: {
   requestId: string;
   draftId: string;
+  enabledChannels: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [revisionNote, setRevisionNote] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(enabledChannels);
+
+  function toggleChannel(channel: string, checked: boolean) {
+    setSelectedChannels((prev) =>
+      checked ? [...prev, channel] : prev.filter((c) => c !== channel),
+    );
+  }
 
   function handleApprove() {
     startTransition(async () => {
-      await approveArticle(requestId, draftId);
-      toast.success("Content approved.");
+      await approveArticle(requestId, draftId, selectedChannels);
+      toast.success(
+        selectedChannels.length > 0
+          ? "Content approved — adapting for the selected channels."
+          : "Content approved.",
+      );
       router.refresh();
     });
   }
@@ -64,9 +86,55 @@ export function ReviewActions({
 
   return (
     <div className="flex items-center gap-3">
-      <Button onClick={handleApprove} disabled={pending}>
-        Approve
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button disabled={pending}>Approve</Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve Content</AlertDialogTitle>
+            <AlertDialogDescription>
+              {enabledChannels.length > 0
+                ? "Choose which channels to adapt this article for. Only configured channels are available."
+                : "No channels are configured yet — approving will skip channel adaptation. Set up a channel in Settings to enable it."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {enabledChannels.length > 0 && (
+            <div className="space-y-3">
+              {ALL_CHANNELS.map((channel) => {
+                const isEnabled = enabledChannels.includes(channel);
+                return (
+                  <div key={channel} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`approve-channel-${channel}`}
+                      disabled={!isEnabled}
+                      checked={isEnabled && selectedChannels.includes(channel)}
+                      onCheckedChange={(checked) =>
+                        toggleChannel(channel, checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor={`approve-channel-${channel}`}
+                      className={!isEnabled ? "text-muted-foreground" : undefined}
+                    >
+                      {CHANNEL_LABELS[channel]}
+                      {!isEnabled && " — Configure in Settings"}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={pending}>
+              {pending ? "Approving…" : "Approve"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog>
         <AlertDialogTrigger asChild>
