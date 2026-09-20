@@ -23,6 +23,7 @@ from app.db.session import get_session_factory
 from app.evaluation.evaluator import evaluate_draft
 from app.evaluation.revision import revise_draft
 from app.generation.context import build_context_for_draft
+from app.notifications.service import notify_review_ready
 from app.pipeline.job_tracker import JobTracker, now
 
 MAX_REVISION_CYCLES = 2
@@ -194,3 +195,4 @@ async def run_evaluation_pipeline(
             {"now": now(), "id": request_uuid},
         )
         await session.commit()
+        await notify_review_ready(session, request_uuid)

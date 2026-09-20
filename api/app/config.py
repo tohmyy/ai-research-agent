@@ -37,16 +37,18 @@ class Settings(BaseSettings):
     # (e.g. postgresql+asyncpg://user:password@host:5432/postgres).
     DATABASE_URL: str = ""
 
-    # LinkedIn publishing (w_member_social scope).
-    LINKEDIN_ACCESS_TOKEN: str = ""
+    # This app's own outbound notification email identity (review-ready/
+    # published/publish-failed emails to the app's own users). Distinct
+    # from a channel's publishing credentials, which live in the
+    # `channel_configs` table set via the Settings page, not here —
+    # LinkedIn/X/newsletter email credentials are user-configurable at
+    # runtime and never read from process env vars.
+    EMAIL_PROVIDER: str = "sendgrid"  # sendgrid | resend
+    EMAIL_API_KEY: str = ""
+    EMAIL_FROM_ADDRESS: str = ""
 
-    # X (Twitter) publishing.
-    X_API_KEY: str = ""
-    X_API_SECRET: str = ""
-    X_ACCESS_TOKEN: str = ""
-
-    # SendGrid — newsletter sends + notifications.
-    SENDGRID_API_KEY: str = ""
+    # Base URL of the Next.js app, used to build links inside notification emails.
+    APP_BASE_URL: str = "http://localhost:3000"
 
 
 @lru_cache

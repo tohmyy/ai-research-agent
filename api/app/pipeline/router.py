@@ -68,6 +68,7 @@ async def start_pipeline(
 class AdaptChannelsRequest(BaseModel):
     request_id: str
     draft_id: str
+    channels: list[str]
 
 
 class AdaptChannelsResponse(BaseModel):
@@ -89,6 +90,11 @@ async def adapt_channels(
             status_code=400, detail="request_id and draft_id must be valid UUIDs"
         ) from exc
 
+    valid_channels = {"linkedin", "x", "newsletter"}
+    channels = [c for c in payload.channels if c in valid_channels]
+    if not channels:
+        raise HTTPException(status_code=400, detail="channels must include at least one of: linkedin, x, newsletter")
+
     result = await session.execute(
         text(
             """
@@ -103,7 +109,7 @@ async def adapt_channels(
     research_job_id = result.scalar_one()
 
     background_tasks.add_task(
-        run_channel_adaptation_pipeline, str(request_uuid), str(research_job_id), str(draft_uuid)
+        run_channel_adaptation_pipeline, str(request_uuid), str(research_job_id), str(draft_uuid), channels
     )
 
     return AdaptChannelsResponse(research_job_id=str(research_job_id), status="pending")

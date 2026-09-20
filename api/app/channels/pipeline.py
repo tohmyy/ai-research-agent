@@ -24,6 +24,7 @@ from app.db.session import get_session_factory
 from app.evaluation.pipeline import MAX_REVISION_CYCLES, insert_evaluation_for_channel_content
 from app.generation.claude_client import GenerationError
 from app.generation.context import build_context_for_draft
+from app.notifications.service import notify_review_ready
 from app.pipeline.job_tracker import JobTracker, now
 
 CHANNELS = ["linkedin", "x", "newsletter"]
@@ -142,11 +143,14 @@ async def _adapt_and_evaluate_channel(
         await _evaluate_and_revise_one(session, channel, content_row, context)
 
 
-async def run_channel_adaptation_pipeline(request_id: str, research_job_id: str, draft_id: str) -> None:
+async def run_channel_adaptation_pipeline(
+    request_id: str, research_job_id: str, draft_id: str, channels: list[str] | None = None
+) -> None:
     session_factory = get_session_factory()
     request_uuid = uuid.UUID(request_id)
     job_uuid = uuid.UUID(research_job_id)
     draft_uuid = uuid.UUID(draft_id)
+    selected_channels = [c for c in (channels or CHANNELS) if c in CHANNELS]
     job: JobTracker | None = None
 
     try:
@@ -161,14 +165,14 @@ async def run_channel_adaptation_pipeline(request_id: str, research_job_id: str,
                 )
             ).one()
 
-        for channel in CHANNELS:
+        for channel in selected_channels:
             await _adapt_and_evaluate_channel(
                 session_factory, job, draft_uuid, draft_row.title, draft_row.body_markdown, channel
             )
 
         async with session_factory() as final_session:
             job.session = final_session
-            await job.complete_step(f"Adapted and evaluated content for {len(CHANNELS)} channels")
+            await job.complete_step(f"Adapted and evaluated content for {len(selected_channels)} channels")
 
             await job.succeed()
             await final_session.execute(
@@ -176,6 +180,7 @@ async def run_channel_adaptation_pipeline(request_id: str, research_job_id: str,
                 {"now": now(), "id": request_uuid},
             )
             await final_session.commit()
+            await notify_review_ready(final_session, request_uuid)
 
     except GenerationError as exc:
         await _fail(session_factory, job, job_uuid, request_uuid, str(exc))

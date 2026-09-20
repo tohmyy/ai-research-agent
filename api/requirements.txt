@@ -16,3 +16,9 @@ anthropic==1.6.0
 firecrawl-py==1.13.5
 voyageai==0.3.2
 sendgrid==6.11.0
+resend==2.5.1
+
+# Publishing (Phase 7): scheduler + outbound HTTP for LinkedIn/X
+apscheduler==3.10.4
+requests==2.32.3
+requests-oauthlib==2.0.0

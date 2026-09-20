@@ -5,5 +5,5 @@ Sends SendGrid emails when content enters `options_ready` or
 `failed`. Every send attempt (success or failure) is logged to
 `notifications`.
 
-Implemented in Phase 7 — see BUILD-PLAN.md. No logic lives here yet.
+See `service.py` for the three `notify_*` functions.
 """
