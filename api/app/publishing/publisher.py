@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import markdown
 import requests
 from requests_oauthlib import OAuth1
 
@@ -141,13 +142,20 @@ class EmailPublisher(Publisher):
         if not recipients:
             return PublishResult(success=False, error="No valid recipient emails configured for the newsletter.")
 
+        # `channel_content.body` is real markdown (bold, bullet lists,
+        # links) — it must be converted to real HTML, not just have its
+        # newlines turned into <br>, or every markdown token ships to the
+        # recipient's inbox as literal text. `nl2br` preserves single-line
+        # breaks within a paragraph the same way the body is authored.
+        html_body = markdown.markdown(channel_content.body, extensions=["nl2br"])
+
         success, message_id, error = send_email(
             provider=provider,
             api_key=api_key,
             from_email=from_email,
             to_emails=recipients,
             subject=channel_content.subject or "Newsletter",
-            html_content=channel_content.body.replace("\n", "<br>"),
+            html_content=html_body,
         )
         if not success:
             return PublishResult(success=False, error=error)
