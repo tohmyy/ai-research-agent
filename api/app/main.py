@@ -58,11 +58,11 @@ def create_app() -> FastAPI:
     hooks without reshaping this function's callers.
     """
     app = FastAPI(
-        title="Content Agent AI Engine",
+        title="Resetchy AI Engine",
         description=(
             "FastAPI service owning research, RAG, generation, evaluation, "
-            "channel adaptation, and publishing for the AI Content Research "
-            "and Publishing Agent."
+            "channel adaptation, and publishing for Resetchy, the AI content "
+            "research and publishing agent."
         ),
         version="0.1.0",
         lifespan=lifespan,

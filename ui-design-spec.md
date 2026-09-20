@@ -2144,7 +2144,7 @@ The sidebar should be collapsible.
 ### Expanded
 
 ```text
-AI Content Agent
+Resetchy
 
 Dashboard
 

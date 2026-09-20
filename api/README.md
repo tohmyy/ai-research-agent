@@ -1,4 +1,4 @@
-# Content Agent — FastAPI AI Engine
+# Resetchy — FastAPI AI Engine
 
 Phase 0 scaffold only. This service will own research, RAG, generation,
 evaluation, channel adaptation, and every outbound third-party integration
