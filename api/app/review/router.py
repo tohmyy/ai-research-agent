@@ -12,6 +12,7 @@ from app.db.session import get_db_session
 from app.evaluation.evaluator import evaluate_draft
 from app.evaluation.pipeline import copy_draft_sources, insert_evaluation
 from app.evaluation.revision import revise_draft
+from app.generation.claude_client import GenerationError
 from app.generation.context import build_context_for_draft
 from app.review.ai_assist import generate_ai_assist_edit
 
@@ -58,7 +59,10 @@ async def request_revision(
         "sections_needing_revision": [],
         "recommended_changes": [payload.note],
     }
-    new_article = revise_draft(draft.title, draft.body_markdown, feedback, context)
+    try:
+        new_article = revise_draft(draft.title, draft.body_markdown, feedback, context)
+    except GenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     new_id = (
         await session.execute(
@@ -84,7 +88,10 @@ async def request_revision(
     await copy_draft_sources(session, draft.id, new_id)
 
     new_context = await build_context_for_draft(session, new_id)
-    evaluation = evaluate_draft(new_article["title"], new_article["body_markdown"], new_context)
+    try:
+        evaluation = evaluate_draft(new_article["title"], new_article["body_markdown"], new_context)
+    except GenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     await insert_evaluation(session, new_id, evaluation)
 
     # Carry forward the original draft's status (normally "selected", since
@@ -122,8 +129,11 @@ async def ai_assist(
     draft = await _load_draft(session, draft_id)
     context = await build_context_for_draft(session, draft_id)
 
-    proposal = generate_ai_assist_edit(
-        draft.title, draft.body_markdown, payload.instruction, context
-    )
+    try:
+        proposal = generate_ai_assist_edit(
+            draft.title, draft.body_markdown, payload.instruction, context
+        )
+    except GenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return AiAssistResponse(title=proposal["title"], body_markdown=proposal["body_markdown"])

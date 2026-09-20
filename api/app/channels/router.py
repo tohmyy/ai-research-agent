@@ -12,6 +12,7 @@ from app.channels.evaluation import evaluate_channel_content
 from app.channels.revision import revise_channel_content
 from app.db.session import get_db_session
 from app.evaluation.pipeline import insert_evaluation_for_channel_content
+from app.generation.claude_client import GenerationError
 from app.generation.context import build_context_for_draft
 
 router = APIRouter(prefix="/channel-content", tags=["channels"])
@@ -57,7 +58,10 @@ async def request_revision(
         "sections_needing_revision": [],
         "recommended_changes": [payload.note],
     }
-    revised = revise_channel_content(content.channel, content.subject, content.body, feedback, context)
+    try:
+        revised = revise_channel_content(content.channel, content.subject, content.body, feedback, context)
+    except GenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     new_id = (
         await session.execute(
@@ -80,7 +84,10 @@ async def request_revision(
     ).scalar_one()
     await session.commit()
 
-    evaluation = evaluate_channel_content(content.channel, revised.get("subject"), revised["body"], context)
+    try:
+        evaluation = evaluate_channel_content(content.channel, revised.get("subject"), revised["body"], context)
+    except GenerationError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     await insert_evaluation_for_channel_content(session, new_id, evaluation)
 
     # Carry forward the original content's status (normally "evaluated",
