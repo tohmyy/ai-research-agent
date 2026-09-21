@@ -24,6 +24,10 @@ import { LiveRefresh } from "@/components/research/live-refresh";
 import { ArticleOptions } from "@/components/content-requests/article-options";
 import { ReviewWorkspace } from "@/components/content-requests/review-workspace";
 import { ChannelReview } from "@/components/content-requests/channel-review";
+import {
+  SectionChecklist,
+  type ChecklistSection,
+} from "@/components/content-requests/section-checklist";
 import type {
   ArticleOption,
   ChannelContentItem,
@@ -296,61 +300,77 @@ export default async function ContentRequestDetailPage({
       {request.status === "failed" ? (
         <ResearchFailure requestId={request.id} error={job?.error ?? null} stage={job?.stage ?? null} />
       ) : (
-        <>
-          {steps.length > 0 && (
-            <section className="space-y-4">
-              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
-                {inProgress ? "Researching" : "Research"}
-              </h2>
-              <ActivityTimeline steps={steps} />
-            </section>
-          )}
+        (() => {
+          const sections: ChecklistSection[] = [];
 
-          {hasOptions && (
-            <section className="space-y-4">
-              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
-                Article Options
-              </h2>
-              <ArticleOptions
-                requestId={request.id}
-                options={options}
-                alreadySelected={request.status !== "options_ready"}
-              />
-            </section>
-          )}
+          if (steps.length > 0) {
+            sections.push({
+              key: "research",
+              label: inProgress ? "Researching" : "Research",
+              content: <ActivityTimeline steps={steps} />,
+            });
+          }
 
-          {reviewedOption && (
-            <section className="space-y-4">
-              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
-                Review
-              </h2>
-              <ReviewWorkspace
-                requestId={request.id}
-                option={reviewedOption}
-                readOnly={request.status !== "selected"}
-                enabledChannels={enabledChannels}
-              />
-            </section>
-          )}
+          if (hasOptions) {
+            sections.push({
+              key: "options",
+              label: "Article Options",
+              content: (
+                <ArticleOptions
+                  requestId={request.id}
+                  options={options}
+                  alreadySelected={request.status !== "options_ready"}
+                />
+              ),
+            });
+          }
 
-          {channelItems.length > 0 && (
-            <section className="space-y-4">
-              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
-                Channel Content
-              </h2>
-              <ChannelReview requestId={request.id} items={channelItems} />
-            </section>
-          )}
+          if (reviewedOption) {
+            sections.push({
+              key: "review",
+              label: "Review",
+              content: (
+                <ReviewWorkspace
+                  requestId={request.id}
+                  option={reviewedOption}
+                  readOnly={request.status !== "selected"}
+                  enabledChannels={enabledChannels}
+                />
+              ),
+            });
+          }
 
-          {requestSources.length > 0 && (
-            <section id="sources" className="space-y-4 scroll-mt-6">
-              <h2 className="text-section-title font-semibold tracking-[-0.01em]">
-                Sources
-              </h2>
-              <SourceExplorer sources={requestSources} />
-            </section>
-          )}
-        </>
+          if (channelItems.length > 0) {
+            sections.push({
+              key: "channels",
+              label: "Channel Content",
+              content: <ChannelReview requestId={request.id} items={channelItems} />,
+            });
+          }
+
+          if (requestSources.length > 0) {
+            sections.push({
+              key: "sources",
+              label: "Sources",
+              content: <SourceExplorer sources={requestSources} />,
+            });
+          }
+
+          if (sections.length === 0) return null;
+
+          // Default to whichever section reflects the furthest-along stage
+          // that actually has content, so a returning reviewer lands on
+          // the most relevant section rather than always on Research.
+          const defaultActive =
+            (channelItems.length > 0 && "channels") ||
+            (reviewedOption && "review") ||
+            (hasOptions && "options") ||
+            (steps.length > 0 && "research") ||
+            (requestSources.length > 0 && "sources") ||
+            sections[0]!.key;
+
+          return <SectionChecklist sections={sections} defaultActive={defaultActive} />;
+        })()
       )}
     </div>
   );

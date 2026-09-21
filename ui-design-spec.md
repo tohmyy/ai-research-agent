@@ -2775,6 +2775,23 @@ Human Review
 
 ---
 
+## 32.1 Content Request Detail Navigation
+
+The content-request detail page (`/content-requests/[id]`) does not stack every workflow section (Research, Article Options, Review, Channel Content, Sources) on the page at once. Instead it shows a section checklist:
+
+```text
+[ Research ]  [ Article Options ]  [ Review ]  [ Channel Content ]  [ Sources ]
+```
+
+Rules:
+
+* Only sections that have available content are listed — a request still in research shows just `Research` (with LiveResearch/live activity); a request with an approved draft adds `Review`; once channel content exists, `Channel Content` and `Sources` appear too.
+* The active item is visually selected; selecting a different item shows that section and hides the others, so the page never renders all sections simultaneously.
+* Default active section prefers the latest workflow stage with content, in this order: Channel Content → Review → Article Options → Research → Sources.
+* In-progress research still defaults to the Research section so live progress remains visible without an extra click.
+
+---
+
 # 33. AI-Assisted Article Editor
 
 The editor is a core MVP component.
@@ -2897,6 +2914,20 @@ Supported MVP channels:
 * X
 * Newsletter
 
+The channel review workspace places the live preview and the editable fields side by side on desktop, rather than stacking preview above editor above an always-expanded evaluation panel:
+
+```text
+┌─────────────────────────┬─────────────────────────┐
+│ Channel Preview         │ Channel Editor          │
+│ (LinkedIn / X / email)  │ subject (newsletter)    │
+│                         │ body + Save Changes     │
+└─────────────────────────┴─────────────────────────┘
+```
+
+* Equal (or near-equal) columns on `lg` and above; the editor stacks below the preview on smaller screens.
+* Once a channel is approved or rejected, the editor is replaced by a read-only state (or hidden) since the content is no longer editable.
+* Evaluation and Version History sit below the preview/editor row as compact controls (see §42–44), not as an always-on expanded side panel.
+
 ---
 
 # 38. LinkedIn Preview
@@ -2972,15 +3003,23 @@ Newsletter
 
 The selected channel should be clearly indicated.
 
+The tab selector shares one horizontal toolbar row with the review actions for the currently selected channel (see §49):
+
+```text
+[ LinkedIn | X | Newsletter ]     [Approve] [Request Revision] [Reject]
+```
+
+* Tabs sit on the left, actions on the right of the same row.
+* Approve / Request Revision / Reject apply to whichever channel tab is currently active.
+* After a channel is approved or rejected, its action buttons are replaced by a status banner in that same toolbar position (current behavior — see §52).
+
 ---
 
 # 42. Evaluation
 
 Evaluation is generated after channel adaptation.
 
-The evaluation section should initially be collapsed.
-
-Initial state:
+For the **article** review workspace, the evaluation section is an initially-collapsed inline panel (unchanged — see §46–48):
 
 ```text
 Content Evaluation
@@ -2990,11 +3029,23 @@ Evaluation complete
 [Show Evaluation]
 ```
 
+For **channel** review, evaluation is a compact control rather than an inline expandable panel, since it sits alongside the preview/editor and Version History (see §37, §54):
+
+```text
+AI Evaluation
+
+Evaluation complete
+
+[View Evaluation]
+```
+
+`[View Evaluation]` opens the evaluation in a modal (§43) instead of expanding inline.
+
 ---
 
 # 43. Evaluation Details
 
-When expanded:
+Article review keeps the inline-expand pattern; channel review opens the same details inside a modal dialog. Either way, once shown:
 
 ```text
 Overall Score
@@ -3029,6 +3080,13 @@ Follow with:
 ! CTA could be stronger
 ! Section 3 needs additional evidence
 ```
+
+For channel review, the evaluation modal additionally supports cycling between a channel's own evaluated versions (v1 → v2 → current) — not across channels:
+
+* The modal opens on the latest version that has an evaluation, labeled `AI Evaluation — vN · Current`.
+* If the channel has more than one evaluated version, the modal footer shows **Previous / Next** controls plus a position indicator (e.g. `1 of 2`), matching the pattern used by Version History (§54).
+* A channel with only one evaluated version shows no cycle controls.
+* Previous/Next only move between that channel's own evaluation versions; they never jump to a different channel (LinkedIn/X/Newsletter).
 
 ---
 
@@ -3143,6 +3201,8 @@ Reject
 ```
 
 The actions must be clearly differentiated.
+
+In the article review workspace (§46–48), actions sit in the page header. In channel review, actions sit in the channel toolbar, on the same row as the channel tabs and scoped to whichever channel tab is active (see §41).
 
 ---
 
@@ -4170,6 +4230,8 @@ Every MVP screen should satisfy:
 * [ ] Save Draft works from the Understanding stage
 * [ ] Start Research works from the Understanding stage
 * [ ] Submission and parse errors are understandable
+* [ ] Detail page shows a section checklist listing only sections with available content
+* [ ] Selecting a checklist section shows that section and hides the others
 
 ---
 
@@ -4186,6 +4248,7 @@ Every MVP screen should satisfy:
 * [ ] Source details are available
 * [ ] Source URLs are accessible
 * [ ] Source grounding is visible
+* [ ] In-progress research is the default active section on the detail page's section checklist
 
 ---
 
@@ -4228,19 +4291,26 @@ Every MVP screen should satisfy:
 * [ ] Channel previews are available
 * [ ] Content is reviewed before approval
 * [ ] Channel-specific formatting is visible
+* [ ] Channel tabs and Approve/Request Revision/Reject actions render on one toolbar row
+* [ ] Channel preview and editor render side by side on desktop (`lg` and above)
+* [ ] Preview stacks above editor on smaller screens
 
 ---
 
 # 102. Acceptance Criteria — Evaluation
 
 * [ ] Evaluation exists
-* [ ] Evaluation is collapsed initially
-* [ ] User can expand evaluation
+* [ ] Evaluation is collapsed initially in the article review workspace
+* [ ] User can expand evaluation in the article review workspace
 * [ ] Overall score is visible after expansion
 * [ ] Individual scores are visible
 * [ ] Strengths are visible
 * [ ] Weaknesses are visible
 * [ ] Evaluation does not block human judgment
+* [ ] In channel review, evaluation opens in a modal from a compact "View Evaluation" control
+* [ ] Evaluation modal supports Previous/Next cycling across a channel's own evaluated versions
+* [ ] Evaluation modal never cycles across different channels (LinkedIn/X/Newsletter)
+* [ ] A channel with a single evaluated version shows no cycle controls
 
 ---
 

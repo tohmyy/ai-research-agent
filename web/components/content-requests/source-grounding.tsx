@@ -25,10 +25,7 @@ export function SourceGrounding({
       <p>
         {shown.join(" · ")}
         {remaining > 0 && ` · +${remaining}`}
-        {" · "}
-        <a href="#sources" className="text-primary underline-offset-4 hover:underline">
-          View all sources →
-        </a>
+        {remaining > 0 && " · see the Sources tab above for the full list"}
       </p>
     </div>
   );
